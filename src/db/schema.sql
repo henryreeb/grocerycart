@@ -114,7 +114,7 @@ CREATE TABLE cart_snapshots (
 
 CREATE TABLE submission_operations (
   id TEXT PRIMARY KEY,
-  draft_id INTEGER NOT NULL REFERENCES weekly_drafts(id),
+  draft_id INTEGER NOT NULL UNIQUE REFERENCES weekly_drafts(id),
   snapshot_id TEXT NOT NULL REFERENCES cart_snapshots(id),
   status TEXT NOT NULL CHECK (status IN ('pending', 'partial', 'complete', 'failed')),
   result_json TEXT,

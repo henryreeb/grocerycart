@@ -14,4 +14,16 @@ describe("D1 schema", () => {
     expect(() => db.exec("INSERT INTO weekly_drafts (id, draft_week, status) VALUES (2, '2026-11-09', 'draft')")).toThrow();
     expect(() => db.exec("INSERT INTO draft_items (draft_id, product_id, quantity, source) VALUES (1, 'p1', 2, 'search')")).toThrow();
   });
+
+  test("prevents two submission operations for one draft", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(readFileSync("src/db/schema.sql", "utf8"));
+    db.exec("INSERT INTO households (id, timezone) VALUES (1, 'America/New_York')");
+    db.exec("INSERT INTO weekly_drafts (id, draft_week, status) VALUES (1, '2026-11-09', 'draft')");
+    db.exec("INSERT INTO extension_installations (id, credential_hash) VALUES ('ext', 'hash')");
+    db.exec("INSERT INTO cart_snapshots (id, installation_id, payload_json, observed_at) VALUES ('snap', 'ext', '{\"items\":[]}', '2026-11-12T15:00:00Z')");
+    db.exec("INSERT INTO submission_operations (id, draft_id, snapshot_id, status) VALUES ('one', 1, 'snap', 'pending')");
+
+    expect(() => db.exec("INSERT INTO submission_operations (id, draft_id, snapshot_id, status) VALUES ('two', 1, 'snap', 'pending')")).toThrow();
+  });
 });

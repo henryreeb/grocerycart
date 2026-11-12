@@ -5,6 +5,7 @@ import { handleProducts } from "./routes/products";
 import { handleDrafts } from "./routes/drafts";
 import { handleStaples } from "./routes/staples";
 import { handleSchedule, prepareFromEnv } from "./routes/schedule";
+import { handleSubmission } from "./routes/submission";
 
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -15,6 +16,7 @@ export default {
     if (url.pathname === "/api/login" || url.pathname === "/api/logout") return handleAuth(request, env);
     if (url.pathname.startsWith("/api/oauth/")) return handleOAuth(request, env);
     if (url.pathname === "/api/products") return handleProducts(request, env);
+    if (/^\/api\/drafts\/\d+\/submit$/.test(url.pathname)) return handleSubmission(request, env);
     if (url.pathname.startsWith("/api/drafts/")) return handleDrafts(request, env);
     if (url.pathname.startsWith("/api/staples/")) return handleStaples(request, env);
     if (url.pathname === "/api/drafts/prepare" && request.method === "POST") return handleSchedule(request, env);
