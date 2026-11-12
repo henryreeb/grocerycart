@@ -79,6 +79,12 @@ CREATE TABLE oauth_tokens (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE oauth_states (
+  state TEXT PRIMARY KEY,
+  verifier TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+
 CREATE TABLE extension_installations (
   id TEXT PRIMARY KEY,
   credential_hash TEXT NOT NULL,
