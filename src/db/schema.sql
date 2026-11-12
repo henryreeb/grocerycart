@@ -86,6 +86,12 @@ CREATE TABLE extension_installations (
   last_seen_at TEXT
 );
 
+CREATE TABLE login_attempts (
+  address TEXT PRIMARY KEY,
+  failures INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE extension_nonces (
   installation_id TEXT NOT NULL REFERENCES extension_installations(id) ON DELETE CASCADE,
   nonce TEXT NOT NULL,
