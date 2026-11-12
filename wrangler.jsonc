@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "grocerycart",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-12",
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "grocerycart",
+      "database_id": "LOCAL_REPLACE_ME"
+    }
+  ]
+}

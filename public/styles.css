@@ -1,0 +1,10 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  background: #f6f7f4;
+  color: #172019;
+}
+
+body { margin: 0; }
+main { max-width: 64rem; margin: 0 auto; padding: 2rem 1rem; }
+:focus-visible { outline: 3px solid #166534; outline-offset: 3px; }
