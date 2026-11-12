@@ -13,5 +13,8 @@
       "database_name": "grocerycart",
       "database_id": "LOCAL_REPLACE_ME"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": ["0 * * * THU"]
+  }
 }

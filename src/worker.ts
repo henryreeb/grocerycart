@@ -4,6 +4,7 @@ import { handleOAuth } from "./routes/oauth";
 import { handleProducts } from "./routes/products";
 import { handleDrafts } from "./routes/drafts";
 import { handleStaples } from "./routes/staples";
+import { handleSchedule, prepareFromEnv } from "./routes/schedule";
 
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -16,9 +17,10 @@ export default {
     if (url.pathname === "/api/products") return handleProducts(request, env);
     if (url.pathname.startsWith("/api/drafts/")) return handleDrafts(request, env);
     if (url.pathname.startsWith("/api/staples/")) return handleStaples(request, env);
+    if (url.pathname === "/api/drafts/prepare" && request.method === "POST") return handleSchedule(request, env);
     return env.ASSETS.fetch(request);
   },
-  async scheduled(): Promise<void> {
-    // Weekly preparation is added in Task 5.
+  async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+    await prepareFromEnv(env);
   }
 } satisfies ExportedHandler<Env>;
