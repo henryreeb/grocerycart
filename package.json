@@ -2,10 +2,12 @@
   "name": "kroger-weekly-cart",
   "private": true,
   "type": "module",
+  "engines": { "node": ">=22", "npm": ">=11" },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "dev": "wrangler dev",
+    "hash-password": "node --experimental-strip-types scripts/hash-password.ts",
     "package:extensions": "node scripts/package-extension.mjs"
   },
   "devDependencies": {

@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { prepareWeeklyDraft, type PreparedItem, type WeeklyDraftStore } from "../../src/domain/schedule";
+import { createCsrfToken } from "../../src/auth/csrf";
+import { createSession, sessionCookie } from "../../src/auth/session";
+import worker from "../../src/worker";
 
 function memoryStore(): WeeklyDraftStore & { createCount: number; items: PreparedItem[] } {
   let draft: { id: number; draftWeek: string } | null = null;
@@ -14,6 +17,18 @@ function memoryStore(): WeeklyDraftStore & { createCount: number; items: Prepare
 }
 
 describe("weekly draft preparation", () => {
+  test("routes manual preparation to the scheduler", async () => {
+    const secret = "a-test-secret-long-enough-for-hmac";
+    const token = await createSession(secret);
+    const request = new Request("https://cart.example/api/drafts/prepare", { method: "POST", headers: { cookie: sessionCookie(token).split(";")[0]!, "x-csrf-token": await createCsrfToken(secret, token) } });
+    const db = { prepare: () => ({ first: async () => null }) };
+
+    const response = await worker.fetch(request, { DB: db, SESSION_SECRET: secret, APP_ORIGIN: "https://cart.example" } as never, {} as never);
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "Preferred store is not configured" });
+  });
+
   test("is idempotent across repeated triggers", async () => {
     const store = memoryStore();
     const loadProduct = async () => ({ id: "milk", upc: "0001", description: "Milk", brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 399, promoPriceCents: 349, weightPriceCents: null, weightUnit: null });

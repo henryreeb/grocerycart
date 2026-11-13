@@ -7,22 +7,48 @@ import { handleStaples } from "./routes/staples";
 import { handleSchedule, prepareFromEnv } from "./routes/schedule";
 import { handleSubmission } from "./routes/submission";
 import { handleExtension } from "./routes/extension";
+import { handleHouseholdData } from "./routes/household-data";
+
+function secure(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set("content-security-policy", "default-src 'self'; connect-src 'self' https://api.kroger.com; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+  headers.set("x-frame-options", "DENY");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("referrer-policy", "no-referrer");
+  headers.set("cache-control", "no-store");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
 
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+    const origin = request.headers.get("origin");
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && origin && origin !== (env.APP_ORIGIN || url.origin)) return secure(Response.json({ error: "Cross-origin request rejected" }, { status: 403 }));
+    let response: Response;
     if (url.pathname === "/api/health") {
-      return Response.json({ ok: true });
+      response = Response.json({ ok: true });
+    } else if (url.pathname === "/api/household-data") {
+      response = await handleHouseholdData(request, env);
+    } else if (url.pathname === "/api/login" || url.pathname === "/api/logout") {
+      response = await handleAuth(request, env);
+    } else if (url.pathname.startsWith("/api/oauth/")) {
+      response = await handleOAuth(request, env);
+    } else if (url.pathname === "/api/products") {
+      response = await handleProducts(request, env);
+    } else if (url.pathname === "/api/drafts/prepare" && request.method === "POST") {
+      response = await handleSchedule(request, env);
+    } else if (/^\/api\/drafts\/\d+\/submit$/.test(url.pathname)) {
+      response = await handleSubmission(request, env);
+    } else if (url.pathname.startsWith("/api/drafts/")) {
+      response = await handleDrafts(request, env);
+    } else if (url.pathname.startsWith("/api/staples/")) {
+      response = await handleStaples(request, env);
+    } else if (url.pathname.startsWith("/api/extension/")) {
+      response = await handleExtension(request, env);
+    } else {
+      response = await env.ASSETS.fetch(request);
     }
-    if (url.pathname === "/api/login" || url.pathname === "/api/logout") return handleAuth(request, env);
-    if (url.pathname.startsWith("/api/oauth/")) return handleOAuth(request, env);
-    if (url.pathname === "/api/products") return handleProducts(request, env);
-    if (/^\/api\/drafts\/\d+\/submit$/.test(url.pathname)) return handleSubmission(request, env);
-    if (url.pathname.startsWith("/api/drafts/")) return handleDrafts(request, env);
-    if (url.pathname.startsWith("/api/staples/")) return handleStaples(request, env);
-    if (url.pathname === "/api/drafts/prepare" && request.method === "POST") return handleSchedule(request, env);
-    if (url.pathname.startsWith("/api/extension/")) return handleExtension(request, env);
-    return env.ASSETS.fetch(request);
+    return secure(response);
   },
   async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
     await prepareFromEnv(env);

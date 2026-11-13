@@ -1,0 +1,6 @@
+SESSION_SECRET=replace-with-at-least-32-random-bytes
+TOKEN_ENCRYPTION_KEY=replace-with-32-random-bytes
+KROGER_CLIENT_ID=your-kroger-client-id
+KROGER_CLIENT_SECRET=your-kroger-client-secret
+KROGER_REDIRECT_URI=http://localhost:8787/api/oauth/callback
+APP_ORIGIN=http://localhost:8787

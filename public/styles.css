@@ -35,6 +35,8 @@ h1, h2, h3, p { margin-top: 0; }
 .price { font-weight: 700; }
 .availability { color: #4b6551; }
 [data-kind="error"] { color: #b42318; }
+footer { display: flex; gap: 1rem; align-items: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #d8ded8; }
+button.danger { background: #b42318; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 @media (max-width: 42rem) {
   header, .item-card, .search-result, .item-actions { align-items: stretch; flex-direction: column; }

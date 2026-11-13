@@ -108,6 +108,16 @@ async function sendDraft() {
   }
 }
 
+async function prepareNow() {
+  try {
+    await api("/api/drafts/prepare", { method: "POST" });
+    await refreshDraft();
+    showMessage("Weekly draft prepared.");
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+}
+
 async function stage(productId, quantity) {
   try {
     await api(`/api/drafts/${draft.id}/items`, { method: "POST", body: JSON.stringify({ productId, quantity }) });
@@ -161,14 +171,15 @@ async function search(event) {
 
 async function loadApp() {
   root.replaceChildren(element("div", { className: "shell" }, [
-    element("header", {}, [element("div", {}, [element("p", { textContent: "Thursday pickup planner", className: "eyebrow" }), element("h1", { textContent: "This week’s draft" })]), element("a", { href: "/api/oauth/start", textContent: "Connect Kroger", className: "button-link" })]),
+    element("header", {}, [element("div", {}, [element("p", { textContent: "Thursday pickup planner", className: "eyebrow" }), element("h1", { textContent: "This week’s draft" })]), element("div", { className: "item-actions" }, [(() => { const button = element("button", { type: "button", textContent: "Prepare now", className: "secondary" }); button.addEventListener("click", prepareNow); return button; })(), element("a", { href: "/api/oauth/start", textContent: "Connect Kroger", className: "button-link" })])]),
     element("p", { id: "message", role: "status", ariaLive: "polite" }),
     element("section", { ariaLabel: "Add groceries" }, [
       element("h2", { textContent: "Add something" }),
       (() => { const form = element("form", { className: "search-form" }, [element("label", { textContent: "Search your pickup store", className: "sr-only", htmlFor: "search" }), element("input", { id: "search", name: "q", minLength: 2, required: true, placeholder: "Milk, coffee, paper towels…" }), element("button", { type: "submit", textContent: "Search" })]); form.addEventListener("submit", search); return form; })(),
       element("div", { id: "search-results", className: "results" })
     ]),
-    element("section", { ariaLabel: "Weekly draft" }, [element("h2", { textContent: "Staged items" }), element("p", { id: "draft-empty", textContent: "No draft is ready yet. Use Prepare now after setup." }), element("div", { id: "draft-items", className: "items" }), (() => { const button = element("button", { type: "button", textContent: "Send approved items", className: "send-draft" }); button.addEventListener("click", sendDraft); return button; })()])
+    element("section", { ariaLabel: "Weekly draft" }, [element("h2", { textContent: "Staged items" }), element("p", { id: "draft-empty", textContent: "No draft is ready yet. Use Prepare now after setup." }), element("div", { id: "draft-items", className: "items" }), (() => { const button = element("button", { type: "button", textContent: "Send approved items", className: "send-draft" }); button.addEventListener("click", sendDraft); return button; })()]),
+    element("footer", {}, [element("a", { href: "/api/household-data", textContent: "Export household data" }), (() => { const button = element("button", { type: "button", textContent: "Delete household data", className: "danger" }); button.addEventListener("click", async () => { const password = window.prompt("Enter the household password"); if (!password || window.prompt("Type DELETE to permanently remove this app's household data. Export first if you need a backup.") !== "DELETE") return; try { await api("/api/household-data", { method: "POST", body: JSON.stringify({ password, confirmation: "DELETE" }) }); sessionStorage.clear(); loginView(); } catch (error) { showMessage(error.message, "error"); } }); return button; })()])
   ]));
   try {
     await refreshDraft();
