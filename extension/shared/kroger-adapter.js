@@ -46,13 +46,18 @@
   }
 
   function parseCart(document) {
-    const ready = document.querySelector("[data-gc-cart-ready='true'], [data-testid='cart-page'], [data-testid='empty-cart']");
+    const ready = document.querySelector("[data-gc-cart-ready='true'], [data-testid='cart-page'], [data-testid='empty-cart'], [data-testid='CartHeader']");
     if (!ready) return { status: "unknown", items: [] };
-    const nodes = [...document.querySelectorAll("[data-gc-cart-item], [data-testid*='cart-item']")];
+    const currentNodes = [...document.querySelectorAll("[data-testid='cart-page-item-description']")].map((description) => {
+      let node = description.parentElement;
+      while (node && !(productIdFrom(node) && node.querySelector("[data-testid='citrus-QuantityStepper-input']"))) node = node.parentElement;
+      return node;
+    }).filter(Boolean);
+    const nodes = [...new Set([...document.querySelectorAll("[data-gc-cart-item], [data-testid*='cart-item']"), ...currentNodes])];
     const items = nodes.map((node) => ({
       upc: productIdFrom(node),
-      description: node.getAttribute("data-description") || node.textContent?.trim() || "Cart item",
-      quantity: Number(node.getAttribute("data-quantity") || node.querySelector?.('input[name*="quantity"], input[aria-label*="quantity" i]')?.value || 1),
+      description: node.getAttribute("data-description") || node.querySelector?.("[data-testid='cart-page-item-description']")?.textContent?.trim() || node.textContent?.trim() || "Cart item",
+      quantity: Number(node.getAttribute("data-quantity") || node.querySelector?.('[data-testid="citrus-QuantityStepper-input"], input[name*="quantity"], input[aria-label*="quantity" i]')?.value || 1),
       discountCents: node.hasAttribute("data-discount-cents") ? Number(node.getAttribute("data-discount-cents")) : (() => {
         const value = node.querySelector?.("[data-testid*='discount']")?.textContent?.match(/\$([0-9]+(?:\.[0-9]{2})?)/)?.[1];
         return value ? Math.round(Number(value) * 100) : null;

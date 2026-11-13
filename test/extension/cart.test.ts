@@ -4,6 +4,21 @@ import { describe, expect, test } from "vitest";
 import "../../extension/shared/kroger-adapter.js";
 
 describe("cart adapter", () => {
+  test("extracts items from Kroger's current cart markup", () => {
+    const { document } = parseHTML(`<!doctype html><html><body>
+      <header data-testid="CartHeader"></header>
+      <article>
+        <a href="/p/kroger-whole-milk/0001111040101"><img data-testid="product-image"></a>
+        <span data-testid="cart-page-item-description">Kroger Whole Milk</span>
+        <input data-testid="citrus-QuantityStepper-input" value="2">
+      </article>
+    </body></html>`);
+
+    expect(globalThis.GroceryCartExtension.parseCart(document)).toEqual({ status: "complete", items: [
+      { upc: "0001111040101", description: "Kroger Whole Milk", quantity: 2, discountCents: null }
+    ] });
+  });
+
   test("extracts exact UPCs, quantities, and visible discounts", () => {
     const { document } = parseHTML(readFileSync("extension/fixtures/cart.html", "utf8"));
 
