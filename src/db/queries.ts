@@ -8,7 +8,7 @@ export interface Household {
 export interface Draft {
   id: number;
   draftWeek: string;
-  status: "draft" | "submitting" | "submitted";
+  status: "preparing" | "draft" | "submitting" | "partial" | "submitted";
 }
 
 export interface DraftItem {

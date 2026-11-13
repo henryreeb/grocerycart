@@ -5,8 +5,10 @@ import { verifyPassword } from "../auth/password";
 
 async function login(request: Request, env: Env, now: Date): Promise<Response> {
   const address = request.headers.get("cf-connecting-ip") ?? "unknown";
-  const attempts = await env.DB.prepare("SELECT failures FROM login_attempts WHERE address = ?").bind(address).first<{ failures: number }>();
-  if ((attempts?.failures ?? 0) >= 5) return Response.json({ error: "Too many attempts" }, { status: 429 });
+  const attempts = await env.DB.prepare("SELECT failures, updated_at FROM login_attempts WHERE address = ?").bind(address).first<{ failures: number; updated_at: string }>();
+  const cooldownActive = attempts && now.getTime() - new Date(attempts.updated_at).getTime() < 15 * 60_000;
+  if ((attempts?.failures ?? 0) >= 5 && cooldownActive) return Response.json({ error: "Too many attempts" }, { status: 429 });
+  if (attempts && !cooldownActive) await env.DB.prepare("DELETE FROM login_attempts WHERE address = ?").bind(address).run();
 
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) return Response.json({ error: "JSON required" }, { status: 415 });
@@ -34,6 +36,11 @@ async function logout(request: Request, env: Env): Promise<Response> {
 
 export async function handleAuth(request: Request, env: Env, now = new Date()): Promise<Response> {
   const path = new URL(request.url).pathname;
+  if (request.method === "GET" && path === "/api/session") {
+    const token = readSessionCookie(request);
+    if (!token || !(await verifySession(env.SESSION_SECRET, token, now))) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return Response.json({ csrf: await createCsrfToken(env.SESSION_SECRET, token) }, { headers: { "cache-control": "no-store" } });
+  }
   if (request.method === "POST" && path === "/api/login") return login(request, env, now);
   if (request.method === "POST" && path === "/api/logout") return logout(request, env);
   return Response.json({ error: "Not found" }, { status: 404 });

@@ -1,4 +1,4 @@
-importScripts("shared/messages.js");
+if (typeof importScripts === "function") importScripts("shared/messages.js");
 
 const extensionApi = globalThis.browser ?? globalThis.chrome;
 
@@ -15,7 +15,8 @@ async function postEvidence(evidenceType, body) {
   const envelope = { version: 1, type: evidenceType, installationId, timestamp: new Date().toISOString(), nonce: crypto.randomUUID(), body };
   const key = await crypto.subtle.importKey("raw", bytes(credential), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const signature = base64url(new Uint8Array(await crypto.subtle.sign("HMAC", key, bytes(globalThis.GroceryCartExtension.canonicalEnvelope(envelope)))));
-  await fetch(`${appOrigin}/api/extension/evidence`, { method: "POST", headers: { "content-type": "application/json", "x-extension-credential": credential, "x-extension-signature": signature }, body: JSON.stringify(envelope) });
+  const response = await fetch(`${appOrigin}/api/extension/evidence`, { method: "POST", headers: { "content-type": "application/json", "x-extension-credential": credential, "x-extension-signature": signature }, body: JSON.stringify(envelope) });
+  if (!response.ok) throw new Error((await response.json()).error || "Evidence upload failed");
 }
 
 extensionApi.runtime.onMessage.addListener(async (message) => {

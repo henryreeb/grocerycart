@@ -22,8 +22,8 @@ describe("D1 schema", () => {
     db.exec("INSERT INTO weekly_drafts (id, draft_week, status) VALUES (1, '2026-11-09', 'draft')");
     db.exec("INSERT INTO extension_installations (id, credential_hash) VALUES ('ext', 'hash')");
     db.exec("INSERT INTO cart_snapshots (id, installation_id, payload_json, observed_at) VALUES ('snap', 'ext', '{\"items\":[]}', '2026-11-12T15:00:00Z')");
-    db.exec("INSERT INTO submission_operations (id, draft_id, snapshot_id, status) VALUES ('one', 1, 'snap', 'pending')");
+    db.exec("INSERT INTO submission_operations (id, draft_id, snapshot_id, status, items_json) VALUES ('one', 1, 'snap', 'pending', '[]')");
 
-    expect(() => db.exec("INSERT INTO submission_operations (id, draft_id, snapshot_id, status) VALUES ('two', 1, 'snap', 'pending')")).toThrow();
+    expect(() => db.exec("INSERT INTO submission_operations (id, draft_id, snapshot_id, status, items_json) VALUES ('two', 1, 'snap', 'pending', '[]')")).toThrow();
   });
 });

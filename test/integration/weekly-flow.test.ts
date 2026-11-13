@@ -18,6 +18,7 @@ test("two months of purchases become a Thursday draft that requires duplicate co
     async activeStaples() { return [{ productId: "milk", quantity: 2, previousPriceCents: 399 }]; },
     async createDraft(week) { return { id: 1, draftWeek: week }; },
     async addItem(_id, item) { prepared.push(item); }
+    ,async completeDraft() {}
   };
   await prepareWeeklyDraft(draftStore, async () => ({ id: "milk", upc: "0001", description: "Milk", brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 429, promoPriceCents: 349, weightPriceCents: null, weightUnit: null }), new Date("2026-11-12T15:00:00Z"));
   expect(prepared[0]).toMatchObject({ currentPriceCents: 349, previousPriceCents: 399 });
@@ -27,7 +28,7 @@ test("two months of purchases become a Thursday draft that requires duplicate co
   let status = "draft";
   let added = 0;
   const submissionStore: SubmissionStore = {
-    async loadDraft() { return { id: 1, status, items: [{ upc: "0001", description: "Milk", quantity: 2 }] }; },
+    async loadDraft() { return { id: 1, status, revision: 0, items: [{ upc: "0001", description: "Milk", quantity: 2 }] }; },
     async loadSnapshot() { return snapshot; },
     async begin() { status = "submitting"; return "op"; },
     async batchComplete() {},

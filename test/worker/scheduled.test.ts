@@ -6,13 +6,15 @@ import worker from "../../src/worker";
 
 function memoryStore(): WeeklyDraftStore & { createCount: number; items: PreparedItem[] } {
   let draft: { id: number; draftWeek: string } | null = null;
+  let complete = false;
   return {
     createCount: 0,
     items: [],
-    async findDraft() { return draft; },
+    async findDraft() { return complete ? draft : null; },
     async activeStaples() { return [{ productId: "milk", quantity: 1, previousPriceCents: 399 }]; },
-    async createDraft(week) { this.createCount += 1; draft = { id: 1, draftWeek: week }; return draft; },
+    async createDraft(week) { this.createCount += 1; complete = false; draft = { id: 1, draftWeek: week }; return draft; },
     async addItem(_draftId, item) { this.items.push(item); }
+    ,async completeDraft() { complete = true; }
   };
 }
 
@@ -55,5 +57,14 @@ describe("weekly draft preparation", () => {
     const result = await prepareWeeklyDraft(store, loadProduct, new Date("2026-11-11T14:00:00Z"), true);
 
     expect(result).toMatchObject({ id: 1 });
+  });
+
+  test("does not report an interrupted preparation as complete", async () => {
+    const store = memoryStore();
+    store.activeStaples = async () => { throw new Error("database interrupted"); };
+    await expect(prepareWeeklyDraft(store, async () => { throw new Error("unused"); }, new Date("2026-11-12T15:00:00Z"))).rejects.toThrow("interrupted");
+    store.activeStaples = async () => [{ productId: "milk", quantity: 1, previousPriceCents: 399 }];
+    await prepareWeeklyDraft(store, async () => ({ id: "milk", upc: "0001", description: "Milk", brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 399, promoPriceCents: null, weightPriceCents: null, weightUnit: null }), new Date("2026-11-12T15:01:00Z"));
+    expect(store.items).toHaveLength(1);
   });
 });

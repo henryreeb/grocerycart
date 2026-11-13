@@ -2,7 +2,7 @@
   function productIdFrom(node) {
     const explicit = node.getAttribute("data-product-id") || node.getAttribute("data-upc");
     if (explicit) return explicit;
-    const link = node.querySelector?.('a[href*="/p/"]')?.getAttribute("href") ?? "";
+    const link = (node.matches?.('a[href*="/p/"]') ? node : node.querySelector?.('a[href*="/p/"]'))?.getAttribute("href") ?? "";
     return link.match(/\/(\d{10,14})(?:\?|$)/)?.[1] ?? null;
   }
 
@@ -35,26 +35,31 @@
     return [...document.querySelectorAll("[data-gc-coupon], [data-testid*='coupon']")].map((node) => ({
       couponKey: node.getAttribute("data-coupon-key") || node.getAttribute("data-coupon-id") || node.id || null,
       label: node.getAttribute("data-label") || node.textContent?.trim() || "Coupon",
-      clipped: node.getAttribute("data-clipped") === "true" || /clipped/i.test(node.querySelector?.("button")?.textContent || ""),
+      clipped: node.getAttribute("data-clipped") === "true" || /^clipped$/i.test(node.querySelector?.("button")?.textContent?.trim() || ""),
       eligibleUpcs: [...new Set([
         ...(node.getAttribute("data-eligible-upcs") || "").split(",").map((upc) => upc.trim()).filter(Boolean),
         ...[...node.querySelectorAll?.('a[href*="/p/"]') || []].map(productIdFrom).filter(Boolean)
       ])],
-      minimumQuantity: Number(node.getAttribute("data-min-quantity") || node.textContent?.match(/buy\s+(\d+)/i)?.[1] || 1),
+      minimumQuantity: (() => { const value = node.getAttribute("data-min-quantity") || node.textContent?.match(/buy\s+(\d+)/i)?.[1]; return value ? Number(value) : null; })(),
       expired: node.getAttribute("data-expired") === "true" || /expired/i.test(node.textContent || "")
     })).filter((coupon) => coupon.couponKey);
   }
 
   function parseCart(document) {
-    return [...document.querySelectorAll("[data-gc-cart-item], [data-testid*='cart-item']")].map((node) => ({
+    const ready = document.querySelector("[data-gc-cart-ready='true'], [data-testid='cart-page'], [data-testid='empty-cart']");
+    if (!ready) return { status: "unknown", items: [] };
+    const nodes = [...document.querySelectorAll("[data-gc-cart-item], [data-testid*='cart-item']")];
+    const items = nodes.map((node) => ({
       upc: productIdFrom(node),
       description: node.getAttribute("data-description") || node.textContent?.trim() || "Cart item",
-      quantity: Number(node.getAttribute("data-quantity") || 1),
+      quantity: Number(node.getAttribute("data-quantity") || node.querySelector?.('input[name*="quantity"], input[aria-label*="quantity" i]')?.value || 1),
       discountCents: node.hasAttribute("data-discount-cents") ? Number(node.getAttribute("data-discount-cents")) : (() => {
         const value = node.querySelector?.("[data-testid*='discount']")?.textContent?.match(/\$([0-9]+(?:\.[0-9]{2})?)/)?.[1];
         return value ? Math.round(Number(value) * 100) : null;
       })()
-    })).filter((item) => item.upc);
+    }));
+    if (items.some((item) => !item.upc || !Number.isInteger(item.quantity) || item.quantity < 1)) return { status: "unknown", items: [] };
+    return { status: "complete", items };
   }
 
   scope.GroceryCartExtension = { ...scope.GroceryCartExtension, parseRecentPurchases, parseCoupons, parseCart, productIdFrom };

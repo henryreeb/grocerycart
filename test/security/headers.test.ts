@@ -26,4 +26,11 @@ describe("worker security boundary", () => {
 
     expect(response.status).toBe(200);
   });
+
+  test("allows credential-authenticated extension pairing through the Worker boundary", async () => {
+    const db = { prepare: () => ({ bind() { return this; }, first: async () => null }) };
+    const response = await worker.fetch(new Request("https://cart.example/api/extension/pair", { method: "POST", headers: { origin: "chrome-extension://test", "content-type": "application/json" }, body: JSON.stringify({ code: "bad" }) }), { APP_ORIGIN: "https://cart.example", ASSETS: { fetch: () => Promise.resolve(new Response("app")) }, DB: db } as never, {} as never);
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: "Invalid pairing code" });
+  });
 });

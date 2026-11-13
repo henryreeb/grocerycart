@@ -49,6 +49,7 @@ export interface WeeklyDraftStore {
   activeStaples(): Promise<ActiveStaple[]>;
   createDraft(week: string): Promise<{ id: number; draftWeek: string }>;
   addItem(draftId: number, item: PreparedItem): Promise<void>;
+  completeDraft(draftId: number): Promise<void>;
 }
 
 export async function prepareWeeklyDraft(store: WeeklyDraftStore, loadProduct: (productId: string) => Promise<Product>, now = new Date(), force = false): Promise<{ id: number; draftWeek: string } | null> {
@@ -58,12 +59,15 @@ export async function prepareWeeklyDraft(store: WeeklyDraftStore, loadProduct: (
   if (existing) return existing;
   const draft = await store.createDraft(week);
   for (const staple of await store.activeStaples()) {
+    let item: PreparedItem;
     try {
       const product = await loadProduct(staple.productId);
-      await store.addItem(draft.id, { productId: staple.productId, quantity: staple.quantity, currentPriceCents: effectivePrice(product), previousPriceCents: staple.previousPriceCents, available: product.available, stale: false, product });
+      item = { productId: staple.productId, quantity: staple.quantity, currentPriceCents: effectivePrice(product), previousPriceCents: staple.previousPriceCents, available: product.available, stale: false, product };
     } catch {
-      await store.addItem(draft.id, { productId: staple.productId, quantity: staple.quantity, currentPriceCents: staple.previousPriceCents, previousPriceCents: staple.previousPriceCents, available: true, stale: true });
+      item = { productId: staple.productId, quantity: staple.quantity, currentPriceCents: staple.previousPriceCents, previousPriceCents: staple.previousPriceCents, available: true, stale: true };
     }
+    await store.addItem(draft.id, item);
   }
+  await store.completeDraft(draft.id);
   return draft;
 }

@@ -5,6 +5,7 @@ describe("password hashing", () => {
   test("accepts the original password and rejects a different password", async () => {
     const encoded = await hashPassword("correct horse battery staple", new Uint8Array(16).fill(7));
 
+    expect(encoded).toContain("$100000$");
     expect(await verifyPassword("correct horse battery staple", encoded)).toBe(true);
     expect(await verifyPassword("wrong", encoded)).toBe(false);
   });

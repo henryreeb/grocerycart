@@ -23,13 +23,14 @@ export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get("origin");
-    if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && origin && origin !== (env.APP_ORIGIN || url.origin)) return secure(Response.json({ error: "Cross-origin request rejected" }, { status: 403 }));
+    const extensionRoute = url.pathname === "/api/extension/pair" || url.pathname === "/api/extension/evidence";
+    if (!extensionRoute && !["GET", "HEAD", "OPTIONS"].includes(request.method) && origin && origin !== (env.APP_ORIGIN || url.origin)) return secure(Response.json({ error: "Cross-origin request rejected" }, { status: 403 }));
     let response: Response;
     if (url.pathname === "/api/health") {
       response = Response.json({ ok: true });
     } else if (url.pathname === "/api/household-data") {
       response = await handleHouseholdData(request, env);
-    } else if (url.pathname === "/api/login" || url.pathname === "/api/logout") {
+    } else if (["/api/login", "/api/logout", "/api/session"].includes(url.pathname)) {
       response = await handleAuth(request, env);
     } else if (url.pathname.startsWith("/api/oauth/")) {
       response = await handleOAuth(request, env);

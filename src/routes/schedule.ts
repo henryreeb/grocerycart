@@ -7,7 +7,7 @@ import { loadKrogerClient } from "./products";
 function d1Store(env: Env): WeeklyDraftStore {
   return {
     async findDraft(week) {
-      const row = await env.DB.prepare("SELECT id, draft_week FROM weekly_drafts WHERE draft_week = ?").bind(week).first<{ id: number; draft_week: string }>();
+      const row = await env.DB.prepare("SELECT id, draft_week FROM weekly_drafts WHERE draft_week = ? AND status <> 'preparing'").bind(week).first<{ id: number; draft_week: string }>();
       return row ? { id: row.id, draftWeek: row.draft_week } : null;
     },
     async activeStaples() {
@@ -15,7 +15,7 @@ function d1Store(env: Env): WeeklyDraftStore {
       return rows.results.map((row) => ({ productId: row.product_id, quantity: row.default_quantity, previousPriceCents: row.previous_price_cents }));
     },
     async createDraft(week) {
-      const row = await env.DB.prepare("INSERT INTO weekly_drafts (draft_week, status) VALUES (?, 'draft') RETURNING id").bind(week).first<{ id: number }>();
+      const row = await env.DB.prepare("INSERT INTO weekly_drafts (draft_week, status) VALUES (?, 'preparing') ON CONFLICT(draft_week) DO UPDATE SET status = 'preparing' RETURNING id").bind(week).first<{ id: number }>();
       if (!row) throw new Error("Draft was not created");
       return { id: row.id, draftWeek: week };
     },
@@ -30,6 +30,9 @@ function d1Store(env: Env): WeeklyDraftStore {
         const household = await env.DB.prepare("SELECT preferred_store_id FROM households WHERE id = 1").first<{ preferred_store_id: string }>();
         if (household?.preferred_store_id) await env.DB.prepare("INSERT INTO price_snapshots (product_id, store_id, regular_price_cents, promo_price_cents, observed_at) VALUES (?, ?, ?, ?, ?)").bind(item.productId, household.preferred_store_id, item.product.regularPriceCents, item.product.promoPriceCents, new Date().toISOString()).run();
       }
+    },
+    async completeDraft(draftId) {
+      await env.DB.prepare("UPDATE weekly_drafts SET status = 'draft' WHERE id = ? AND status = 'preparing'").bind(draftId).run();
     }
   };
 }

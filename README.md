@@ -21,7 +21,7 @@ The extension only collects visible signed-in Kroger pages. For the initial two-
 ## Cloudflare deployment
 
 1. Create a D1 database named `grocerycart`, replace `LOCAL_REPLACE_ME` in `wrangler.jsonc` with its ID, and apply `src/db/schema.sql` with `npx wrangler d1 execute grocerycart --remote --file=src/db/schema.sql`.
-2. Set `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY`, `KROGER_CLIENT_ID`, and `KROGER_CLIENT_SECRET` with `npx wrangler secret put NAME`. Use random values of at least 32 bytes for the first two.
+2. Set `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY`, `KROGER_CLIENT_ID`, and `KROGER_CLIENT_SECRET` with `npx wrangler secret put NAME`. Use at least 32 random bytes for the session secret. Generate the required base64url-encoded 32-byte AES key in PowerShell with `[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).TrimEnd('=').Replace('+','-').Replace('/','_')`.
 3. Put the production HTTPS URL in `APP_ORIGIN` and `KROGER_REDIRECT_URI` in `wrangler.jsonc` vars, or as secrets. Register the exact `/api/oauth/callback` URL with Kroger. The requested OAuth access must cover product lookup and pickup Cart writes.
 4. Generate the household password hash locally and insert the household row into remote D1 as shown above. Do not put the plaintext password in shell history.
 5. Run `npx wrangler deploy`. In Cloudflare, verify the `0 * * * THU` trigger exists; the worker checks America/New_York and prepares once Thursday reaches 9:00 AM, including DST changes.

@@ -42,7 +42,7 @@ export async function verifyEnvelopeAuth(input: { envelope: ExtensionEnvelope; c
   return input.envelope;
 }
 
-type CouponObservation = { couponKey: string; label: string; clipped: boolean; eligibleUpcs: string[]; minimumQuantity: number; expired: boolean };
+type CouponObservation = { couponKey: string; label: string; clipped: boolean; eligibleUpcs: string[]; minimumQuantity: number | null; expired: boolean };
 
 function couponBody(value: unknown): { sourceUrl: string; coupons: CouponObservation[] } {
   if (!value || typeof value !== "object") throw new Error("Invalid coupon evidence");
@@ -52,7 +52,7 @@ function couponBody(value: unknown): { sourceUrl: string; coupons: CouponObserva
     if (!coupon || typeof coupon !== "object") return false;
     const item = coupon as Partial<CouponObservation>;
     return typeof item.couponKey === "string" && typeof item.label === "string" && typeof item.clipped === "boolean" && Array.isArray(item.eligibleUpcs)
-      && item.eligibleUpcs.every((upc) => typeof upc === "string") && Number.isInteger(item.minimumQuantity) && Number(item.minimumQuantity) > 0 && typeof item.expired === "boolean";
+      && item.eligibleUpcs.every((upc) => typeof upc === "string") && (item.minimumQuantity === null || (Number.isInteger(item.minimumQuantity) && Number(item.minimumQuantity) > 0)) && typeof item.expired === "boolean";
   });
   if (coupons.length !== input.coupons.length) throw new Error("Invalid coupon evidence");
   return { sourceUrl: input.sourceUrl, coupons };
@@ -65,9 +65,14 @@ export async function persistExtensionEvidence(db: D1Database, envelope: Extensi
     return {};
   }
   if (envelope.type === "cart_snapshot") {
-    if (!Array.isArray(envelope.body) || envelope.body.length > 500) throw new Error("Invalid cart snapshot");
+    const cart = envelope.body as { status?: unknown; items?: unknown };
+    if (!cart || cart.status !== "complete" || !Array.isArray(cart.items)) throw new Error("Cart was not recognized");
+    if (cart.items.length > 500 || cart.items.some((item) => !item || typeof item !== "object" || typeof (item as { upc?: unknown }).upc !== "string" || !Number.isInteger((item as { quantity?: unknown }).quantity) || Number((item as { quantity?: unknown }).quantity) < 1)) throw new Error("Invalid cart snapshot");
     const snapshotId = createId();
-    await db.prepare("INSERT INTO cart_snapshots (id, installation_id, payload_json, observed_at) VALUES (?, ?, ?, ?)").bind(snapshotId, envelope.installationId, JSON.stringify({ items: envelope.body }), envelope.timestamp).run();
+    await db.prepare("INSERT INTO cart_snapshots (id, installation_id, payload_json, observed_at) VALUES (?, ?, ?, ?)").bind(snapshotId, envelope.installationId, JSON.stringify({ items: cart.items }), envelope.timestamp).run();
+    for (const item of cart.items as Array<{ upc: string; discountCents?: number | null }>) {
+      if ((item.discountCents ?? 0) > 0) await db.prepare("UPDATE coupon_evidence SET cart_discount_cents = ?, observed_at = ? WHERE draft_item_id IN (SELECT di.id FROM draft_items di JOIN products p ON p.id = di.product_id WHERE p.upc = ?)").bind(item.discountCents, envelope.timestamp, item.upc).run();
+    }
     return { snapshotId };
   }
   const body = couponBody(envelope.body);
@@ -76,7 +81,7 @@ export async function persistExtensionEvidence(db: D1Database, envelope: Extensi
     for (const coupon of body.coupons) {
       if (!coupon.eligibleUpcs.includes(item.upc)) continue;
       await db.prepare("INSERT INTO coupon_evidence (draft_item_id, coupon_key, label, clipped, exact_eligible, minimum_quantity, quantity_satisfied, expired, source_url, observed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(item.id, coupon.couponKey, coupon.label, coupon.clipped ? 1 : 0, 1, coupon.minimumQuantity, item.quantity >= coupon.minimumQuantity ? 1 : 0, coupon.expired ? 1 : 0, body.sourceUrl, envelope.timestamp).run();
+        .bind(item.id, coupon.couponKey, coupon.label, coupon.clipped ? 1 : 0, 1, coupon.minimumQuantity, coupon.minimumQuantity === null ? null : item.quantity >= coupon.minimumQuantity ? 1 : 0, coupon.expired ? 1 : 0, body.sourceUrl, envelope.timestamp).run();
     }
   }
   return {};

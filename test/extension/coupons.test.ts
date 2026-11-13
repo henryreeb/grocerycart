@@ -12,4 +12,9 @@ describe("coupon adapter", () => {
       { couponKey: "coupon-2", label: "Expired", clipped: true, eligibleUpcs: ["0003"], minimumQuantity: 1, expired: true }
     ]);
   });
+
+  test("keeps unknown requirements ambiguous and reads an exact product link", () => {
+    const { document } = parseHTML('<article data-testid="coupon" data-coupon-id="c3"><a href="/p/milk/0000000000042">Shop item</a><button>Clip</button></article>');
+    expect(globalThis.GroceryCartExtension.parseCoupons(document)).toEqual([{ couponKey: "c3", label: "Shop itemClip", clipped: false, eligibleUpcs: ["0000000000042"], minimumQuantity: null, expired: false }]);
+  });
 });

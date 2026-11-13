@@ -54,7 +54,11 @@ export async function handleDrafts(request: Request, env: Env, loadClient: Kroge
     } catch {
       return Response.json({ error: "Draft is not editable" }, { status: 409 });
     }
-    await env.DB.prepare("DELETE FROM draft_items WHERE draft_id = ? AND product_id = ?").bind(draftId, decodeURIComponent(deleteMatch[2]!)).run();
+    const deleted = await env.DB.batch([
+      env.DB.prepare("UPDATE weekly_drafts SET revision = revision + 1 WHERE id = ? AND status = 'draft'").bind(draftId),
+      env.DB.prepare("DELETE FROM draft_items WHERE draft_id = ? AND product_id = ? AND EXISTS (SELECT 1 FROM weekly_drafts WHERE id = ? AND status = 'draft')").bind(draftId, decodeURIComponent(deleteMatch[2]!), draftId)
+    ]);
+    if (deleted[0]?.meta.changes === 0) return Response.json({ error: "Draft changed while editing" }, { status: 409 });
     return new Response(null, { status: 204 });
   }
   const match = path.match(/^\/api\/drafts\/(\d+)\/items$/);
@@ -74,8 +78,12 @@ export async function handleDrafts(request: Request, env: Env, loadClient: Kroge
     const product = await (await loadClient(env)).getProduct(input.productId, household.preferred_store_id);
     await env.DB.prepare("INSERT INTO products (id, upc, description, brand, size, weight_unit) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET upc = excluded.upc, description = excluded.description, brand = excluded.brand, size = excluded.size, weight_unit = excluded.weight_unit, updated_at = CURRENT_TIMESTAMP")
       .bind(product.id, product.upc, product.description, product.brand, product.size, product.weightUnit).run();
-    await env.DB.prepare("INSERT INTO draft_items (draft_id, product_id, quantity, source, current_price_cents, weight_price_cents, weight_unit, available) VALUES (?, ?, ?, 'search', ?, ?, ?, ?) ON CONFLICT(draft_id, product_id) DO UPDATE SET quantity = excluded.quantity, current_price_cents = excluded.current_price_cents, weight_price_cents = excluded.weight_price_cents, weight_unit = excluded.weight_unit, available = excluded.available")
-      .bind(draftId, product.id, input.quantity, effectivePrice(product), product.weightPriceCents, product.weightUnit, product.available ? 1 : 0).run();
+    const staged = await env.DB.batch([
+      env.DB.prepare("UPDATE weekly_drafts SET revision = revision + 1 WHERE id = ? AND status = 'draft'").bind(draftId),
+      env.DB.prepare("INSERT INTO draft_items (draft_id, product_id, quantity, source, current_price_cents, weight_price_cents, weight_unit, available) SELECT ?, ?, ?, 'search', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM weekly_drafts WHERE id = ? AND status = 'draft') ON CONFLICT(draft_id, product_id) DO UPDATE SET quantity = excluded.quantity, current_price_cents = excluded.current_price_cents, weight_price_cents = excluded.weight_price_cents, weight_unit = excluded.weight_unit, available = excluded.available")
+        .bind(draftId, product.id, input.quantity, effectivePrice(product), product.weightPriceCents, product.weightUnit, product.available ? 1 : 0, draftId)
+    ]);
+    if (staged[0]?.meta.changes === 0) return Response.json({ error: "Draft changed while editing" }, { status: 409 });
     return Response.json({ item: { ...product, quantity: input.quantity } }, { status: 201 });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Invalid draft item" }, { status: 400 });

@@ -7,10 +7,15 @@ import { loadKrogerClient } from "./products";
 function d1SubmissionStore(env: Env): SubmissionStore {
   return {
     async loadDraft(draftId) {
-      const draft = await env.DB.prepare("SELECT id, status FROM weekly_drafts WHERE id = ?").bind(draftId).first<{ id: number; status: string }>();
+      const draft = await env.DB.prepare("SELECT id, status, revision FROM weekly_drafts WHERE id = ?").bind(draftId).first<{ id: number; status: string; revision: number }>();
       if (!draft) return null;
+      if (draft.status === "partial") {
+        const operation = await env.DB.prepare("SELECT items_json FROM submission_operations WHERE draft_id = ? AND status = 'partial' ORDER BY created_at DESC LIMIT 1").bind(draftId).first<{ items_json: string }>();
+        if (!operation) throw new Error("Partial submission record is missing");
+        return { id: draft.id, status: draft.status, revision: draft.revision, items: JSON.parse(operation.items_json) as CartSnapshot["items"] };
+      }
       const rows = await env.DB.prepare("SELECT p.upc, p.description, di.quantity FROM draft_items di JOIN products p ON p.id = di.product_id WHERE di.draft_id = ? ORDER BY di.id").bind(draftId).all<{ upc: string; description: string; quantity: number }>();
-      return { id: draft.id, status: draft.status, items: rows.results };
+      return { id: draft.id, status: draft.status, revision: draft.revision, items: rows.results };
     },
     async loadSnapshot(snapshotId) {
       const row = await env.DB.prepare("SELECT id, payload_json, observed_at FROM cart_snapshots WHERE id = ?").bind(snapshotId).first<{ id: string; payload_json: string; observed_at: string }>();
@@ -19,13 +24,18 @@ function d1SubmissionStore(env: Env): SubmissionStore {
       if (!Array.isArray(payload.items)) throw new Error("Malformed cart snapshot");
       return { id: row.id, observedAt: row.observed_at, items: payload.items };
     },
-    async begin(draftId, snapshotId) {
+    async begin(draftId, snapshotId, items, revision) {
+      const existing = await env.DB.prepare("SELECT id, result_json FROM submission_operations WHERE draft_id = ? AND status IN ('partial', 'failed') ORDER BY created_at DESC LIMIT 1").bind(draftId).first<{ id: string; result_json: string | null }>();
+      if (existing) {
+        await env.DB.batch([env.DB.prepare("UPDATE weekly_drafts SET status = 'submitting' WHERE id = ? AND status IN ('draft', 'partial')").bind(draftId), env.DB.prepare("UPDATE submission_operations SET snapshot_id = ?, status = 'pending' WHERE id = ?").bind(snapshotId, existing.id)]);
+        return { id: existing.id, completedBatches: existing.result_json ? JSON.parse(existing.result_json) as number[] : [] };
+      }
       const operationId = crypto.randomUUID();
       const results = await env.DB.batch([
-        env.DB.prepare("UPDATE weekly_drafts SET status = 'submitting' WHERE id = ? AND status = 'draft'").bind(draftId),
-        env.DB.prepare("INSERT INTO submission_operations (id, draft_id, snapshot_id, status, result_json) VALUES (?, ?, ?, 'pending', '[]')").bind(operationId, draftId, snapshotId)
+        env.DB.prepare("UPDATE weekly_drafts SET status = 'submitting' WHERE id = ? AND status = 'draft' AND revision = ?").bind(draftId, revision),
+        env.DB.prepare("INSERT INTO submission_operations (id, draft_id, snapshot_id, status, result_json, items_json) VALUES (?, ?, ?, 'pending', '[]', ?)").bind(operationId, draftId, snapshotId, JSON.stringify(items))
       ]);
-      if (!results.every((result) => result.success)) throw new Error("Submission could not start");
+      if (!results.every((result) => result.success) || results[0]?.meta.changes === 0) throw new Error("Draft changed before submission; review it again");
       return operationId;
     },
     async batchComplete(operationId, batch) {
@@ -37,7 +47,7 @@ function d1SubmissionStore(env: Env): SubmissionStore {
     async finish(operationId, status) {
       await env.DB.prepare("UPDATE submission_operations SET status = ? WHERE id = ?").bind(status, operationId).run();
       await env.DB.prepare(`UPDATE weekly_drafts SET status = ?, submitted_at = CASE WHEN ? = 'complete' THEN CURRENT_TIMESTAMP ELSE submitted_at END WHERE id = (SELECT draft_id FROM submission_operations WHERE id = ?)`)
-        .bind(status === "complete" ? "submitted" : "draft", status, operationId).run();
+        .bind(status === "complete" ? "submitted" : status === "partial" ? "partial" : "draft", status, operationId).run();
     }
   };
 }

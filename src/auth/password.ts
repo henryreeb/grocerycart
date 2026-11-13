@@ -1,6 +1,6 @@
 import { decodeBase64Url, encodeBase64Url, equalBytes } from "./encoding";
 
-const ITERATIONS = 600_000;
+const ITERATIONS = 100_000;
 
 async function derive(password: string, salt: Uint8Array): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
@@ -15,11 +15,7 @@ export async function hashPassword(password: string, suppliedSalt?: Uint8Array):
 }
 
 export async function verifyPassword(password: string, encoded: string): Promise<boolean> {
-  try {
-    const [algorithm, iterations, salt, expected] = encoded.split("$");
-    if (algorithm !== "pbkdf2-sha256" || Number(iterations) !== ITERATIONS || !salt || !expected) return false;
-    return equalBytes(await derive(password, decodeBase64Url(salt)), decodeBase64Url(expected));
-  } catch {
-    return false;
-  }
+  const [algorithm, iterations, salt, expected] = encoded.split("$");
+  if (algorithm !== "pbkdf2-sha256" || Number(iterations) !== ITERATIONS || !salt || !expected) return false;
+  return equalBytes(await derive(password, decodeBase64Url(salt)), decodeBase64Url(expected));
 }

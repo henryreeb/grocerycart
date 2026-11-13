@@ -40,11 +40,16 @@ describe("extension evidence persistence", () => {
 
   test("returns the stored cart snapshot ID", async () => {
     const { db, writes } = evidenceDb();
-    const envelope: ExtensionEnvelope = { ...base, type: "cart_snapshot", body: [{ upc: "0001", description: "Milk", quantity: 2, discountCents: 100 }] };
+    const envelope: ExtensionEnvelope = { ...base, type: "cart_snapshot", body: { status: "complete", items: [{ upc: "0001", description: "Milk", quantity: 2, discountCents: 100 }] } };
 
     const result = await persistExtensionEvidence(db, envelope, () => "snapshot-1");
 
     expect(result).toEqual({ snapshotId: "snapshot-1" });
-    expect(writes.find((write) => write.sql.includes("cart_snapshots"))?.values).toEqual(["snapshot-1", "ext", JSON.stringify({ items: envelope.body }), base.timestamp]);
+    expect(writes.find((write) => write.sql.includes("cart_snapshots"))?.values).toEqual(["snapshot-1", "ext", JSON.stringify({ items: (envelope.body as { items: unknown[] }).items }), base.timestamp]);
+  });
+
+  test("rejects an unrecognized cart as evidence", async () => {
+    const { db } = evidenceDb();
+    await expect(persistExtensionEvidence(db, { ...base, type: "cart_snapshot", body: { status: "unknown", items: [] } })).rejects.toThrow("recognized");
   });
 });

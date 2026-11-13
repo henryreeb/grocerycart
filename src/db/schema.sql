@@ -28,8 +28,9 @@ CREATE TABLE staples (
 CREATE TABLE weekly_drafts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   draft_week TEXT NOT NULL UNIQUE,
-  status TEXT NOT NULL CHECK (status IN ('draft', 'submitting', 'submitted')),
+  status TEXT NOT NULL CHECK (status IN ('preparing', 'draft', 'submitting', 'partial', 'submitted')),
   estimated_total_cents INTEGER,
+  revision INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   submitted_at TEXT
 );
@@ -130,6 +131,7 @@ CREATE TABLE submission_operations (
   draft_id INTEGER NOT NULL UNIQUE REFERENCES weekly_drafts(id),
   snapshot_id TEXT NOT NULL REFERENCES cart_snapshots(id),
   status TEXT NOT NULL CHECK (status IN ('pending', 'partial', 'complete', 'failed')),
+  items_json TEXT NOT NULL,
   result_json TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

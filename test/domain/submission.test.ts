@@ -39,6 +39,18 @@ describe("cart submission", () => {
     expect(calls).toBe(2);
     expect(store.status).toBe("partial");
     expect(store.completedBatches).toEqual([0]);
+    await submitDraft(store, async () => { calls += 1; }, 1, "snap", false, now);
+    expect(calls).toBe(3);
+    expect(store.status).toBe("submitted");
+  });
+
+  test("resumes after the last completed batch", async () => {
+    const items = Array.from({ length: 51 }, (_, index) => ({ upc: String(index), description: `Item ${index}`, quantity: 1 }));
+    const store = memoryStore({ id: "snap", observedAt: now.toISOString(), items: [] }, items);
+    store.begin = async () => ({ id: "operation", completedBatches: [0] });
+    const sent: number[] = [];
+    await submitDraft(store, async (batch) => { sent.push(batch.length); }, 1, "snap", false, now);
+    expect(sent).toEqual([1]);
   });
 });
 
@@ -46,9 +58,9 @@ function memoryStore(snapshot: CartSnapshot, items: Array<{ upc: string; descrip
   return {
     status: "draft",
     completedBatches: [],
-    async loadDraft() { return { id: 1, status: this.status, items }; },
+    async loadDraft() { return { id: 1, status: this.status, revision: 0, items }; },
     async loadSnapshot() { return snapshot; },
-    async begin() { this.status = "submitting"; return "operation"; },
+    async begin() { this.status = "submitting"; return { id: "operation", completedBatches: [...this.completedBatches] }; },
     async batchComplete(_operationId, batch) { this.completedBatches.push(batch); },
     async finish(_operationId, status) { this.status = status === "complete" ? "submitted" : status; }
   };

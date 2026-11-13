@@ -13,13 +13,14 @@ export interface CartSnapshot {
 export interface SubmissionDraft {
   id: number;
   status: string;
+  revision: number;
   items: CartItemSnapshot[];
 }
 
 export interface SubmissionStore {
   loadDraft(draftId: number): Promise<SubmissionDraft | null>;
   loadSnapshot(snapshotId: string): Promise<CartSnapshot | null>;
-  begin(draftId: number, snapshotId: string): Promise<string>;
+  begin(draftId: number, snapshotId: string, items: CartItemSnapshot[], revision: number): Promise<string | { id: string; completedBatches: number[] }>;
   batchComplete(operationId: string, batch: number): Promise<void>;
   finish(operationId: string, status: "complete" | "partial" | "failed"): Promise<void>;
 }
@@ -48,15 +49,18 @@ export async function submitDraft(
 ): Promise<{ status: "complete" | "confirmation_required"; duplicates: ReturnType<typeof findDuplicates> }> {
   const draft = await store.loadDraft(draftId);
   if (!draft) throw new Error("Draft not found");
-  if (draft.status !== "draft") throw new Error("Draft was already submitted or is in progress");
+  if (draft.status !== "draft" && draft.status !== "partial") throw new Error("Draft was already submitted or is in progress");
   const snapshot = await store.loadSnapshot(snapshotId);
   assertFreshSnapshot(snapshot, now);
   const duplicates = findDuplicates(draft.items, snapshot);
   if (duplicates.length > 0 && !duplicateConfirmation) return { status: "confirmation_required", duplicates };
-  const operationId = await store.begin(draftId, snapshotId);
+  const started = await store.begin(draftId, snapshotId, draft.items, draft.revision);
+  const operationId = typeof started === "string" ? started : started.id;
+  const completed = new Set(typeof started === "string" ? [] : started.completedBatches);
   const batches = Array.from({ length: Math.ceil(draft.items.length / 50) }, (_, index) => draft.items.slice(index * 50, (index + 1) * 50));
   try {
     for (const [index, batch] of batches.entries()) {
+      if (completed.has(index)) continue;
       await addBatch(batch.map(({ upc, quantity }) => ({ upc, quantity })));
       await store.batchComplete(operationId, index);
     }

@@ -7,6 +7,7 @@ import type { Env } from "../../src/config";
 function draftEnv(status = "draft") {
   const staged = new Map<string, number>();
   const db = {
+    async batch(statements: Array<{ run(): Promise<unknown> }>) { return Promise.all(statements.map((statement) => statement.run())); },
     prepare(sql: string) {
       let values: unknown[] = [];
       return {
@@ -23,7 +24,7 @@ function draftEnv(status = "draft") {
         async run() {
           if (sql.includes("INSERT INTO draft_items")) staged.set(String(values[1]), Number(values[2]));
           if (sql.includes("DELETE FROM draft_items")) staged.delete(String(values[1]));
-          return { success: true, meta: {} };
+          return { success: true, meta: { changes: 1 } };
         },
         async all() {
           return { success: true, meta: {}, results: [{ product_id: "p1", quantity: 2, description: "Milk", current_price_cents: 349 }] };
