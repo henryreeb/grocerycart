@@ -1,4 +1,6 @@
 (function (scope) {
+  const cartReadySelector = "[data-gc-cart-ready='true'], [data-testid='cart-page'], [data-testid='empty-cart'], [data-testid='CartHeader']";
+
   function productIdFrom(node) {
     const explicit = node.getAttribute("data-product-id") || node.getAttribute("data-upc");
     if (explicit) return explicit;
@@ -46,8 +48,8 @@
   }
 
   function cartExpansionControl(document) {
-    if (!document.querySelector("[data-testid='CartHeader']")) return null;
-    return [...document.querySelectorAll("button")].find((button) => !button.hidden && button.getAttribute("aria-hidden") !== "true" && /^show all items$/i.test(button.textContent?.trim() || "")) ?? null;
+    if (!document.querySelector(cartReadySelector) || document.querySelector("[data-testid='empty-cart']")) return null;
+    return [...document.querySelectorAll("button")].find((button) => !button.hidden && button.getAttribute("aria-hidden") !== "true" && /^show all items$/i.test((button.textContent || "").replace(/\s+/g, " ").trim())) ?? null;
   }
 
   function expandCollapsedCart(document) {
@@ -59,7 +61,7 @@
   }
 
   function parseCart(document) {
-    const ready = document.querySelector("[data-gc-cart-ready='true'], [data-testid='cart-page'], [data-testid='empty-cart'], [data-testid='CartHeader']");
+    const ready = document.querySelector(cartReadySelector);
     if (!ready) return { status: "unknown", items: [] };
     if (cartExpansionControl(document)) return { status: "unknown", items: [] };
     const currentNodes = [...document.querySelectorAll("[data-testid='cart-page-item-description']")].map((description) => {
@@ -78,6 +80,7 @@
       })()
     }));
     if (items.some((item) => !item.upc || !Number.isInteger(item.quantity) || item.quantity < 1)) return { status: "unknown", items: [] };
+    if (items.length === 0 && !document.querySelector("[data-testid='empty-cart']")) return { status: "unknown", items: [] };
     return { status: "complete", items };
   }
 

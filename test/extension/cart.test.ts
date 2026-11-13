@@ -7,7 +7,7 @@ describe("cart adapter", () => {
   test("expands a recognized collapsed cart exactly once", () => {
     const { document } = parseHTML(`<!doctype html><html><body>
       <header data-testid="CartHeader"></header>
-      <button> Show all items </button>
+      <button> Show\n        all items </button>
     </body></html>`);
     const button = document.querySelector("button")!;
     let clicks = 0;
@@ -45,9 +45,19 @@ describe("cart adapter", () => {
     expect(globalThis.GroceryCartExtension.expandCollapsedCart(document)).toBe(false);
   });
 
+  test("expands every cart layout accepted by the parser", () => {
+    const { document } = parseHTML("<html><body><main data-testid='cart-page'><button>Show all items</button></main></body></html>");
+    expect(globalThis.GroceryCartExtension.expandCollapsedCart(document)).toBe(true);
+  });
+
   test("accepts Kroger's explicit empty cart", () => {
     const { document } = parseHTML("<html><body><div data-testid='empty-cart'></div></body></html>");
     expect(globalThis.GroceryCartExtension.parseCart(document)).toEqual({ status: "complete", items: [] });
+  });
+
+  test("rejects a loading cart that has no verified items or empty marker", () => {
+    const { document } = parseHTML("<html><body><header data-testid='CartHeader'></header><p>Loading cart…</p></body></html>");
+    expect(globalThis.GroceryCartExtension.parseCart(document)).toEqual({ status: "unknown", items: [] });
   });
 
   test("extracts items from Kroger's current cart markup", () => {

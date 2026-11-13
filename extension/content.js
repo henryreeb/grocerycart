@@ -21,8 +21,8 @@
       gc.extensionApi.sendMessage({ type: "COLLECTED_EVIDENCE", evidenceType, body });
     };
     const schedule = () => { clearTimeout(timer); timer = setTimeout(collect, 500); };
-    collect();
     new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+    collect();
     setInterval(collect, 4 * 60_000);
   } else {
     window.addEventListener("message", (event) => {
