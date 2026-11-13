@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { persistExtensionEvidence, type ExtensionEnvelope } from "../../src/routes/extension";
 
 function evidenceDb() {
@@ -24,6 +24,21 @@ function evidenceDb() {
 const base = { version: 1, installationId: "ext", timestamp: "2026-11-12T15:00:00Z", nonce: "nonce-1234567890" } as const;
 
 describe("extension evidence persistence", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  test("preserves the Cloudflare crypto receiver when creating snapshot IDs", async () => {
+    const { db } = evidenceDb();
+    const platformCrypto = {
+      randomUUID(this: unknown) {
+        if (this !== platformCrypto) throw new TypeError("Illegal invocation");
+        return "snapshot-platform";
+      }
+    };
+    vi.stubGlobal("crypto", platformCrypto);
+
+    await expect(persistExtensionEvidence(db, { ...base, type: "cart_snapshot", body: { status: "complete", items: [{ upc: "0001", quantity: 1 }] } })).resolves.toEqual({ snapshotId: "snapshot-platform" });
+  });
+
   test("stores coupon evidence only against draft items with exact eligible UPCs", async () => {
     const { db, writes } = evidenceDb();
     const envelope: ExtensionEnvelope = { ...base, type: "coupon_evidence", body: { sourceUrl: "https://www.kroger.com/savings/cl/coupons", coupons: [

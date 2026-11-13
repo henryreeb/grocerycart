@@ -58,7 +58,7 @@ function couponBody(value: unknown): { sourceUrl: string; coupons: CouponObserva
   return { sourceUrl: input.sourceUrl, coupons };
 }
 
-export async function persistExtensionEvidence(db: D1Database, envelope: ExtensionEnvelope, createId: () => string = crypto.randomUUID): Promise<{ snapshotId?: string }> {
+export async function persistExtensionEvidence(db: D1Database, envelope: ExtensionEnvelope, createId: () => string = () => crypto.randomUUID()): Promise<{ snapshotId?: string }> {
   if (envelope.type === "purchase_import") {
     if (!Array.isArray(envelope.body) || envelope.body.length > 2_000) throw new Error("Invalid purchase import");
     await db.prepare("INSERT INTO purchase_imports (id, payload_json, observed_at) VALUES (?, ?, ?)").bind(createId(), JSON.stringify(envelope.body), envelope.timestamp).run();
