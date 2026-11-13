@@ -45,9 +45,23 @@
     })).filter((coupon) => coupon.couponKey);
   }
 
+  function cartExpansionControl(document) {
+    if (!document.querySelector("[data-testid='CartHeader']")) return null;
+    return [...document.querySelectorAll("button")].find((button) => !button.hidden && button.getAttribute("aria-hidden") !== "true" && /^show all items$/i.test(button.textContent?.trim() || "")) ?? null;
+  }
+
+  function expandCollapsedCart(document) {
+    const control = cartExpansionControl(document);
+    if (!control || control.hasAttribute("data-gc-expansion-attempted")) return false;
+    control.setAttribute("data-gc-expansion-attempted", "true");
+    control.click();
+    return true;
+  }
+
   function parseCart(document) {
     const ready = document.querySelector("[data-gc-cart-ready='true'], [data-testid='cart-page'], [data-testid='empty-cart'], [data-testid='CartHeader']");
     if (!ready) return { status: "unknown", items: [] };
+    if (cartExpansionControl(document)) return { status: "unknown", items: [] };
     const currentNodes = [...document.querySelectorAll("[data-testid='cart-page-item-description']")].map((description) => {
       let node = description.parentElement;
       while (node && !(productIdFrom(node) && node.querySelector("[data-testid='citrus-QuantityStepper-input']"))) node = node.parentElement;
@@ -67,5 +81,5 @@
     return { status: "complete", items };
   }
 
-  scope.GroceryCartExtension = { ...scope.GroceryCartExtension, parseRecentPurchases, parseCoupons, parseCart, productIdFrom };
+  scope.GroceryCartExtension = { ...scope.GroceryCartExtension, parseRecentPurchases, parseCoupons, parseCart, expandCollapsedCart, productIdFrom };
 })(globalThis);

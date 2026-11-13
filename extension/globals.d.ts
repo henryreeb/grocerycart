@@ -7,6 +7,7 @@ declare global {
     parseRecentPurchases(document: Document, now?: Date): Array<Record<string, unknown>>;
     parseCoupons(document: Document): Array<Record<string, unknown>>;
     parseCart(document: Document): Array<Record<string, unknown>>;
+    expandCollapsedCart(document: Document): boolean;
     productIdFrom(node: Element): string | null;
   };
 }

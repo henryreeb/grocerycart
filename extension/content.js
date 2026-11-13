@@ -9,7 +9,10 @@
       let body;
       if (location.pathname.includes("recent")) [evidenceType, body] = ["purchase_import", gc.parseRecentPurchases(document)];
       else if (/coupon|saving/i.test(location.pathname)) [evidenceType, body] = ["coupon_evidence", { sourceUrl: location.href, coupons: gc.parseCoupons(document) }];
-      else if (location.pathname.includes("cart")) [evidenceType, body] = ["cart_snapshot", gc.parseCart(document)];
+      else if (location.pathname.includes("cart")) {
+        if (gc.expandCollapsedCart(document)) return;
+        [evidenceType, body] = ["cart_snapshot", gc.parseCart(document)];
+      }
       if (!evidenceType || body?.status === "unknown") return;
       const current = JSON.stringify([evidenceType, body]);
       if (current === last && Date.now() - lastSentAt < 4 * 60_000) return;
