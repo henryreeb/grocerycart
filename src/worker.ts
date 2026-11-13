@@ -6,6 +6,7 @@ import { handleDrafts } from "./routes/drafts";
 import { handleStaples } from "./routes/staples";
 import { handleSchedule, prepareFromEnv } from "./routes/schedule";
 import { handleSubmission } from "./routes/submission";
+import { handleExtension } from "./routes/extension";
 
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
@@ -20,6 +21,7 @@ export default {
     if (url.pathname.startsWith("/api/drafts/")) return handleDrafts(request, env);
     if (url.pathname.startsWith("/api/staples/")) return handleStaples(request, env);
     if (url.pathname === "/api/drafts/prepare" && request.method === "POST") return handleSchedule(request, env);
+    if (url.pathname.startsWith("/api/extension/")) return handleExtension(request, env);
     return env.ASSETS.fetch(request);
   },
   async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {

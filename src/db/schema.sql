@@ -92,6 +92,17 @@ CREATE TABLE extension_installations (
   last_seen_at TEXT
 );
 
+CREATE TABLE extension_pairing_codes (
+  code TEXT PRIMARY KEY,
+  expires_at TEXT NOT NULL
+);
+
+CREATE TABLE purchase_imports (
+  id TEXT PRIMARY KEY,
+  payload_json TEXT NOT NULL,
+  observed_at TEXT NOT NULL
+);
+
 CREATE TABLE login_attempts (
   address TEXT PRIMARY KEY,
   failures INTEGER NOT NULL DEFAULT 0,

@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Household Kroger Cart Companion",
+  "version": "0.1.0",
+  "description": "Imports visible Kroger purchases and verifies cart savings for the household planner.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.kroger.com/*", "https://grocerycart.example/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    { "matches": ["https://www.kroger.com/*", "https://grocerycart.example/*"], "js": ["shared/api.js", "shared/messages.js", "shared/kroger-adapter.js", "content.js"] }
+  ]
+}
