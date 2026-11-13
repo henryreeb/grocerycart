@@ -7,7 +7,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "dev": "wrangler dev",
-    "hash-password": "node --experimental-strip-types scripts/hash-password.ts",
+    "hash-password": "node scripts/hash-password.mjs",
     "package:extensions": "node scripts/package-extension.mjs"
   },
   "devDependencies": {
