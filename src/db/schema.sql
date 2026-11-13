@@ -66,7 +66,9 @@ CREATE TABLE coupon_evidence (
   label TEXT,
   clipped INTEGER NOT NULL DEFAULT 0,
   exact_eligible INTEGER,
+  minimum_quantity INTEGER,
   quantity_satisfied INTEGER,
+  expired INTEGER NOT NULL DEFAULT 0,
   cart_discount_cents INTEGER,
   source_url TEXT NOT NULL,
   observed_at TEXT NOT NULL

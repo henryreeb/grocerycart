@@ -24,6 +24,13 @@ h1, h2, h3, p { margin-top: 0; }
 .items, .results { display: grid; gap: .8rem; }
 .item-card, .search-result { background: white; border: 2px solid transparent; border-radius: 1rem; padding: 1rem; }
 .item-card.unavailable { border-color: #b42318; }
+.item-card.evidence-gray { border-color: #9ca3af; }
+.item-card.evidence-amber { border-color: #d97706; }
+.item-card.evidence-green { border-color: #15803d; }
+.item-card.evidence-blue { border-color: #2563eb; }
+.item-card.evidence-red, .item-card.unavailable { border-color: #b42318; }
+.coupon-status { font-weight: 650; }
+.send-draft { margin-top: 1rem; }
 .item-actions input { width: 4rem; }
 .price { font-weight: 700; }
 .availability { color: #4b6551; }

@@ -8,7 +8,7 @@ async function api(path, options = {}) {
   if (options.method && options.method !== "GET" && csrf) headers.set("x-csrf-token", csrf);
   const response = await fetch(path, { ...options, headers });
   const body = response.status === 204 ? null : await response.json();
-  if (!response.ok) throw Object.assign(new Error(body?.error ?? "Request failed"), { status: response.status });
+  if (!response.ok) throw Object.assign(new Error(body?.error ?? "Request failed"), { status: response.status, body });
   return body;
 }
 
@@ -70,15 +70,42 @@ function itemCard(item) {
   const priceText = item.weightPriceCents !== null && item.weightPriceCents !== undefined
     ? `${money(item.weightPriceCents)}${item.weightUnit ? ` / ${item.weightUnit}` : " per weight unit"} · final cost depends on fulfilled weight`
     : `${money(item.currentPriceCents)} · ${change}`;
-  return element("article", { className: `item-card${item.available ? "" : " unavailable"}` }, [
+  const stateText = { gray: "No coupon evidence", amber: "Coupon needs a fresh or exact check", green: "Clipped coupon applies", blue: "Discount appears in Kroger cart", red: "Coupon does not apply" }[item.couponState ?? "gray"];
+  return element("article", { className: `item-card evidence-${item.couponState ?? "gray"}${item.available ? "" : " unavailable"}` }, [
     element("div", {}, [
       element("h3", { textContent: item.description }),
       element("p", { textContent: [item.brand, item.size].filter(Boolean).join(" · ") }),
       element("p", { textContent: priceText, className: "price" }),
-      element("p", { textContent: item.available ? (item.stale ? "Price refresh needed" : "Available for pickup") : "Unavailable for pickup", className: "availability" })
+      element("p", { textContent: item.available ? (item.stale ? "Price refresh needed" : "Available for pickup") : "Unavailable for pickup", className: "availability" }),
+      element("p", { textContent: `${stateText}${item.coupon?.label ? `: ${item.coupon.label}` : ""}`, className: "coupon-status" })
     ]),
     element("div", { className: "item-actions" }, [quantity, save, remove])
   ]);
+}
+
+async function sendDraft() {
+  try {
+    const { snapshot } = await api("/api/extension/latest-cart");
+    const age = snapshot ? Date.now() - new Date(snapshot.observedAt).getTime() : Infinity;
+    if (!snapshot || age < -60_000 || age > 5 * 60_000) {
+      showMessage("Open your Kroger cart in a tab, wait for the extension to scan it, then try again.", "error");
+      return;
+    }
+    const discounts = new Map(snapshot.items.map((item) => [item.upc, item.discountCents]));
+    for (const item of draft.items) if ((discounts.get(item.upc) ?? 0) > 0) item.couponState = "blue";
+    renderDraft();
+    let result;
+    try {
+      result = await api(`/api/drafts/${draft.id}/submit`, { method: "POST", body: JSON.stringify({ snapshotId: snapshot.id }) });
+    } catch (error) {
+      if (error.status !== 409 || !error.body?.duplicates?.length || !window.confirm(`Already in the Kroger cart: ${error.body.duplicates.join(", ")}. Add them again?`)) throw error;
+      result = await api(`/api/drafts/${draft.id}/submit`, { method: "POST", body: JSON.stringify({ snapshotId: snapshot.id, confirmDuplicates: true }) });
+    }
+    showMessage(`Sent ${result.added ?? draft.items.length} item(s) to Kroger.`);
+    await refreshDraft();
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
 }
 
 async function stage(productId, quantity) {
@@ -141,7 +168,7 @@ async function loadApp() {
       (() => { const form = element("form", { className: "search-form" }, [element("label", { textContent: "Search your pickup store", className: "sr-only", htmlFor: "search" }), element("input", { id: "search", name: "q", minLength: 2, required: true, placeholder: "Milk, coffee, paper towels…" }), element("button", { type: "submit", textContent: "Search" })]); form.addEventListener("submit", search); return form; })(),
       element("div", { id: "search-results", className: "results" })
     ]),
-    element("section", { ariaLabel: "Weekly draft" }, [element("h2", { textContent: "Staged items" }), element("p", { id: "draft-empty", textContent: "No draft is ready yet. Use Prepare now after setup." }), element("div", { id: "draft-items", className: "items" })])
+    element("section", { ariaLabel: "Weekly draft" }, [element("h2", { textContent: "Staged items" }), element("p", { id: "draft-empty", textContent: "No draft is ready yet. Use Prepare now after setup." }), element("div", { id: "draft-items", className: "items" }), (() => { const button = element("button", { type: "button", textContent: "Send approved items", className: "send-draft" }); button.addEventListener("click", sendDraft); return button; })()])
   ]));
   try {
     await refreshDraft();

@@ -42,6 +42,46 @@ export async function verifyEnvelopeAuth(input: { envelope: ExtensionEnvelope; c
   return input.envelope;
 }
 
+type CouponObservation = { couponKey: string; label: string; clipped: boolean; eligibleUpcs: string[]; minimumQuantity: number; expired: boolean };
+
+function couponBody(value: unknown): { sourceUrl: string; coupons: CouponObservation[] } {
+  if (!value || typeof value !== "object") throw new Error("Invalid coupon evidence");
+  const input = value as { sourceUrl?: unknown; coupons?: unknown };
+  if (typeof input.sourceUrl !== "string" || !Array.isArray(input.coupons) || input.coupons.length > 500) throw new Error("Invalid coupon evidence");
+  const coupons = input.coupons.filter((coupon): coupon is CouponObservation => {
+    if (!coupon || typeof coupon !== "object") return false;
+    const item = coupon as Partial<CouponObservation>;
+    return typeof item.couponKey === "string" && typeof item.label === "string" && typeof item.clipped === "boolean" && Array.isArray(item.eligibleUpcs)
+      && item.eligibleUpcs.every((upc) => typeof upc === "string") && Number.isInteger(item.minimumQuantity) && Number(item.minimumQuantity) > 0 && typeof item.expired === "boolean";
+  });
+  if (coupons.length !== input.coupons.length) throw new Error("Invalid coupon evidence");
+  return { sourceUrl: input.sourceUrl, coupons };
+}
+
+export async function persistExtensionEvidence(db: D1Database, envelope: ExtensionEnvelope, createId: () => string = crypto.randomUUID): Promise<{ snapshotId?: string }> {
+  if (envelope.type === "purchase_import") {
+    if (!Array.isArray(envelope.body) || envelope.body.length > 2_000) throw new Error("Invalid purchase import");
+    await db.prepare("INSERT INTO purchase_imports (id, payload_json, observed_at) VALUES (?, ?, ?)").bind(createId(), JSON.stringify(envelope.body), envelope.timestamp).run();
+    return {};
+  }
+  if (envelope.type === "cart_snapshot") {
+    if (!Array.isArray(envelope.body) || envelope.body.length > 500) throw new Error("Invalid cart snapshot");
+    const snapshotId = createId();
+    await db.prepare("INSERT INTO cart_snapshots (id, installation_id, payload_json, observed_at) VALUES (?, ?, ?, ?)").bind(snapshotId, envelope.installationId, JSON.stringify({ items: envelope.body }), envelope.timestamp).run();
+    return { snapshotId };
+  }
+  const body = couponBody(envelope.body);
+  const rows = await db.prepare("SELECT di.id, di.quantity, p.upc FROM draft_items di JOIN products p ON p.id = di.product_id JOIN weekly_drafts d ON d.id = di.draft_id WHERE d.status = 'draft'").all<{ id: number; quantity: number; upc: string }>();
+  for (const item of rows.results) {
+    for (const coupon of body.coupons) {
+      if (!coupon.eligibleUpcs.includes(item.upc)) continue;
+      await db.prepare("INSERT INTO coupon_evidence (draft_item_id, coupon_key, label, clipped, exact_eligible, minimum_quantity, quantity_satisfied, expired, source_url, observed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(item.id, coupon.couponKey, coupon.label, coupon.clipped ? 1 : 0, 1, coupon.minimumQuantity, item.quantity >= coupon.minimumQuantity ? 1 : 0, coupon.expired ? 1 : 0, body.sourceUrl, envelope.timestamp).run();
+    }
+  }
+  return {};
+}
+
 function cors(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set("access-control-allow-origin", "*");
@@ -53,6 +93,13 @@ function cors(response: Response): Response {
 export async function handleExtension(request: Request, env: Env): Promise<Response> {
   const path = new URL(request.url).pathname;
   if (request.method === "OPTIONS") return cors(new Response(null, { status: 204 }));
+  if (path === "/api/extension/latest-cart" && request.method === "GET") {
+    const session = readSessionCookie(request);
+    if (!session || !(await verifySession(env.SESSION_SECRET, session))) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const row = await env.DB.prepare("SELECT id, payload_json, observed_at FROM cart_snapshots ORDER BY observed_at DESC LIMIT 1").first<{ id: string; payload_json: string; observed_at: string }>();
+    if (!row) return Response.json({ snapshot: null });
+    return Response.json({ snapshot: { id: row.id, observedAt: row.observed_at, ...JSON.parse(row.payload_json) as object } }, { headers: { "cache-control": "no-store" } });
+  }
   if (path === "/api/extension/pair-code" && request.method === "POST") {
     const session = readSessionCookie(request);
     const csrf = request.headers.get("x-csrf-token");
@@ -82,13 +129,8 @@ export async function handleExtension(request: Request, env: Env): Promise<Respo
       if (!installation) throw new Error("Unknown extension installation");
       await verifyEnvelopeAuth({ envelope, credential: request.headers.get("x-extension-credential") ?? "", credentialHash: installation.credential_hash, signature: request.headers.get("x-extension-signature") ?? "", nonceUsed: Boolean(nonce) });
       await env.DB.prepare("INSERT INTO extension_nonces (installation_id, nonce, used_at) VALUES (?, ?, ?)").bind(envelope.installationId, envelope.nonce, envelope.timestamp).run();
-      if (envelope.type === "purchase_import") {
-        if (!Array.isArray(envelope.body) || envelope.body.length > 2_000) throw new Error("Invalid purchase import");
-        await env.DB.prepare("INSERT INTO purchase_imports (id, payload_json, observed_at) VALUES (?, ?, ?)").bind(crypto.randomUUID(), JSON.stringify(envelope.body), envelope.timestamp).run();
-      } else if (envelope.type === "cart_snapshot") {
-        await env.DB.prepare("INSERT INTO cart_snapshots (id, installation_id, payload_json, observed_at) VALUES (?, ?, ?, ?)").bind(crypto.randomUUID(), envelope.installationId, JSON.stringify({ items: envelope.body }), envelope.timestamp).run();
-      }
-      return cors(Response.json({ ok: true }));
+      const result = await persistExtensionEvidence(env.DB, envelope);
+      return cors(Response.json({ ok: true, ...result }));
     } catch (error) {
       return cors(Response.json({ error: error instanceof Error ? error.message : "Invalid extension evidence" }, { status: 401 }));
     }

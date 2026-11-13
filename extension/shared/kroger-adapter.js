@@ -31,5 +31,31 @@
     return [...unique.values()];
   }
 
-  scope.GroceryCartExtension = { ...scope.GroceryCartExtension, parseRecentPurchases, productIdFrom };
+  function parseCoupons(document) {
+    return [...document.querySelectorAll("[data-gc-coupon], [data-testid*='coupon']")].map((node) => ({
+      couponKey: node.getAttribute("data-coupon-key") || node.getAttribute("data-coupon-id") || node.id || null,
+      label: node.getAttribute("data-label") || node.textContent?.trim() || "Coupon",
+      clipped: node.getAttribute("data-clipped") === "true" || /clipped/i.test(node.querySelector?.("button")?.textContent || ""),
+      eligibleUpcs: [...new Set([
+        ...(node.getAttribute("data-eligible-upcs") || "").split(",").map((upc) => upc.trim()).filter(Boolean),
+        ...[...node.querySelectorAll?.('a[href*="/p/"]') || []].map(productIdFrom).filter(Boolean)
+      ])],
+      minimumQuantity: Number(node.getAttribute("data-min-quantity") || node.textContent?.match(/buy\s+(\d+)/i)?.[1] || 1),
+      expired: node.getAttribute("data-expired") === "true" || /expired/i.test(node.textContent || "")
+    })).filter((coupon) => coupon.couponKey);
+  }
+
+  function parseCart(document) {
+    return [...document.querySelectorAll("[data-gc-cart-item], [data-testid*='cart-item']")].map((node) => ({
+      upc: productIdFrom(node),
+      description: node.getAttribute("data-description") || node.textContent?.trim() || "Cart item",
+      quantity: Number(node.getAttribute("data-quantity") || 1),
+      discountCents: node.hasAttribute("data-discount-cents") ? Number(node.getAttribute("data-discount-cents")) : (() => {
+        const value = node.querySelector?.("[data-testid*='discount']")?.textContent?.match(/\$([0-9]+(?:\.[0-9]{2})?)/)?.[1];
+        return value ? Math.round(Number(value) * 100) : null;
+      })()
+    })).filter((item) => item.upc);
+  }
+
+  scope.GroceryCartExtension = { ...scope.GroceryCartExtension, parseRecentPurchases, parseCoupons, parseCart, productIdFrom };
 })(globalThis);
