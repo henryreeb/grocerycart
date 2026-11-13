@@ -8,9 +8,31 @@
     return link.match(/\/(\d{10,14})(?:\?|$)/)?.[1] ?? null;
   }
 
-  function parseRecentPurchases(document, now = new Date()) {
+  function parseRecentPurchases(document, now = new Date(), sourceUrl = "") {
     const cutoff = new Date(now);
     cutoff.setUTCMonth(cutoff.getUTCMonth() - 2);
+    if (sourceUrl) {
+      let match;
+      try {
+        const url = new URL(sourceUrl);
+        match = url.hostname === "www.kroger.com" ? url.pathname.match(/^\/mypurchases\/detail\/(\d{4}-\d{2}-\d{2})_([^/]+)$/) : null;
+      } catch { return []; }
+      if (!match) return [];
+      const orderedAt = `${match[1]}T12:00:00Z`;
+      const orderedDate = new Date(orderedAt);
+      if (!Number.isFinite(orderedDate.getTime()) || orderedDate.toISOString().slice(0, 10) !== match[1] || orderedDate.getTime() < cutoff.getTime()) return [];
+      const orderId = `${match[1]}_${decodeURIComponent(match[2])}`;
+      const cards = [...document.querySelectorAll("[data-testid^='list-style-product-card-']")];
+      const records = cards.map((card) => {
+        const productId = productIdFrom(card);
+        const description = card.querySelector("[data-testid='cart-page-item-description']")?.textContent?.trim();
+        const quantity = Number(card.querySelector("[data-testid='citrus-QuantityStepper-input']")?.value);
+        if (!productId || !description || !Number.isInteger(quantity) || quantity < 1) return null;
+        return { orderId, orderedAt, productId, description, size: card.querySelector("[data-testid='product-item-sizing']")?.textContent?.trim() || null, quantity };
+      });
+      if (cards.length === 0 || records.some((record) => record === null)) return [];
+      return [...new Map(records.map((record) => [`${orderId}:${record.productId}`, record])).values()];
+    }
     const nodes = document.querySelectorAll("[data-gc-purchase], [data-testid*='purchase-item'], [data-testid*='product-card']");
     const unique = new Map();
     for (const node of nodes) {
