@@ -3,10 +3,10 @@ import worker from "../../src/worker";
 
 describe("worker shell", () => {
   test("returns a minimal health response", async () => {
-    const response = await worker.fetch(new Request("https://cart.example/api/health"), {} as never, {} as never);
+    const response = await worker.fetch(new Request("https://cart.example/api/health"), { KROGER_CLIENT_ID: "id", KROGER_CLIENT_SECRET: "secret" } as never, {} as never);
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
+    expect(await response.json()).toEqual({ ok: true, krogerConfigured: true });
   });
 
   test("falls back to the static app binding", async () => {

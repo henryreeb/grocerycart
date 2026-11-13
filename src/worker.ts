@@ -27,7 +27,7 @@ export default {
     if (!extensionRoute && !["GET", "HEAD", "OPTIONS"].includes(request.method) && origin && origin !== (env.APP_ORIGIN || url.origin)) return secure(Response.json({ error: "Cross-origin request rejected" }, { status: 403 }));
     let response: Response;
     if (url.pathname === "/api/health") {
-      response = Response.json({ ok: true });
+      response = Response.json({ ok: true, krogerConfigured: Boolean(env.KROGER_CLIENT_ID?.trim() && env.KROGER_CLIENT_SECRET?.trim()) });
     } else if (url.pathname === "/api/household-data") {
       response = await handleHouseholdData(request, env);
     } else if (["/api/login", "/api/logout", "/api/session"].includes(url.pathname)) {
