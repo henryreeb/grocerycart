@@ -16,7 +16,7 @@ describe("Kroger OAuth", () => {
     const url = new URL(buildAuthorizationUrl({ clientId: "client", redirectUri: "https://cart.example/api/oauth/callback", state: "state", challenge: "challenge" }));
 
     expect(url.searchParams.get("response_type")).toBe("code");
-    expect(url.searchParams.get("scope")).toBe("cart.basic:write product.compact profile.compact");
+    expect(url.searchParams.get("scope")).toBe("cart.basic:write product.compact");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
   });
 

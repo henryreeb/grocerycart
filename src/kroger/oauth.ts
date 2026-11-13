@@ -20,7 +20,7 @@ export function buildAuthorizationUrl(input: { clientId: string; redirectUri: st
     client_id: input.clientId,
     redirect_uri: input.redirectUri,
     response_type: "code",
-    scope: "cart.basic:write product.compact profile.compact",
+    scope: "cart.basic:write product.compact",
     state: input.state,
     code_challenge: input.challenge,
     code_challenge_method: "S256"
