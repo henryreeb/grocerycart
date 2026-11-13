@@ -13,6 +13,15 @@ const productResponse = {
 };
 
 describe("KrogerClient", () => {
+  test("calls the fetcher without changing its receiver", async () => {
+    const fetcher = function (this: unknown) {
+      if (this !== undefined) throw new TypeError("Illegal invocation");
+      return Promise.resolve(Response.json(productResponse));
+    } as typeof fetch;
+
+    await expect(new KrogerClient("access-token", fetcher).searchProducts("milk", "01400513")).resolves.toHaveLength(1);
+  });
+
   test("searches the configured store for pickup and normalizes cents", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(productResponse));
     const client = new KrogerClient("access-token", fetcher);

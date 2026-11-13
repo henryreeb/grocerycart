@@ -41,7 +41,8 @@ export class KrogerClient {
   constructor(private readonly accessToken: string, private readonly fetcher: typeof fetch = fetch) {}
 
   private async request(path: string, init: RequestInit = {}): Promise<Response> {
-    const response = await this.fetcher(`${API_BASE}${path}`, {
+    const fetcher = this.fetcher;
+    const response = await fetcher(`${API_BASE}${path}`, {
       ...init,
       headers: { authorization: `Bearer ${this.accessToken}`, "content-type": "application/json", ...init.headers }
     });
