@@ -1,4 +1,5 @@
 import { productImage } from "./product-image.js";
+import { bindSearchForm, createProductSearch } from "./product-search.js";
 
 const root = document.querySelector("#app");
 let csrf = sessionStorage.getItem("csrf") ?? "";
@@ -195,13 +196,10 @@ async function refreshDraft() {
   renderDraft();
 }
 
-async function search(event) {
-  event.preventDefault();
-  const term = new FormData(event.currentTarget).get("q");
-  try {
-    const result = await api(`/api/products?q=${encodeURIComponent(term)}`);
-    const results = document.querySelector("#search-results");
-    results.replaceChildren(...result.products.map((product) => {
+function renderSearchResults(state) {
+  const results = document.querySelector("#search-results");
+  if (!results) return;
+  const cards = state.products.map((product) => {
       const add = element("button", { type: "button", textContent: "Add to draft", disabled: !draft });
       add.addEventListener("click", () => stage(product.id, 1));
       const staple = element("button", { type: "button", textContent: "Use weekly", className: "secondary" });
@@ -211,11 +209,20 @@ async function search(event) {
         element("div", { className: "product-details" }, [element("strong", { textContent: product.description }), element("p", { textContent: [product.brand, product.size, money(product.promoPriceCents ?? product.regularPriceCents)].filter(Boolean).join(" · ") })]),
         element("div", { className: "item-actions" }, [add, staple])
       ]);
-    }));
-  } catch (error) {
-    showMessage(error.message, "error");
+    });
+  if (state.hasMore || state.loading && state.products.length) {
+    const more = element("button", { type: "button", textContent: state.loading ? "Loading…" : "Load more", disabled: state.loading, className: "load-more" });
+    more.addEventListener("click", () => productSearch.more());
+    cards.push(more);
   }
+  results.replaceChildren(...cards);
 }
+
+const productSearch = createProductSearch(
+  (term, start) => api(`/api/products?q=${encodeURIComponent(term)}&limit=10&start=${start}`),
+  renderSearchResults,
+  (error) => showMessage(error.message, "error")
+);
 
 async function loadApp() {
   if (!csrf) {
@@ -233,7 +240,7 @@ async function loadApp() {
     element("p", { id: "message", role: "status", ariaLive: "polite" }),
     element("section", { ariaLabel: "Add groceries" }, [
       element("h2", { textContent: "Add something" }),
-      (() => { const form = element("form", { className: "search-form" }, [element("label", { textContent: "Search your pickup store", className: "sr-only", htmlFor: "search" }), element("input", { id: "search", name: "q", minLength: 2, required: true, placeholder: "Milk, coffee, paper towels…" }), element("button", { type: "submit", textContent: "Search" })]); form.addEventListener("submit", search); return form; })(),
+      (() => { const form = element("form", { className: "search-form" }, [element("label", { textContent: "Search your pickup store", className: "sr-only", htmlFor: "search" }), element("input", { id: "search", name: "q", minLength: 2, required: true, placeholder: "Milk, coffee, paper towels…" }), element("button", { type: "submit", textContent: "Search" })]); bindSearchForm(form, (term) => productSearch.start(term)); return form; })(),
       element("div", { id: "search-results", className: "results" })
     ]),
     element("section", { ariaLabel: "Suggested staples" }, [element("h2", { textContent: "Suggested from recent purchases" }), element("div", { id: "staple-suggestions", className: "results" })]),

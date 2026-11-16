@@ -34,6 +34,7 @@ h1, h2, h3, p { margin-top: 0; }
 .item-card.evidence-red, .item-card.unavailable { border-color: #b42318; }
 .coupon-status { font-weight: 650; }
 .send-draft { margin-top: 1rem; }
+.load-more { justify-self: start; }
 .item-actions input { width: 4rem; }
 .price { font-weight: 700; }
 .availability { color: #4b6551; }
