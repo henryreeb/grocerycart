@@ -22,6 +22,7 @@ section { margin-top: 2rem; }
 .eyebrow { color: #4b6551; font-weight: 700; margin-bottom: .2rem; }
 h1, h2, h3, p { margin-top: 0; }
 .items, .results { display: grid; gap: .8rem; }
+.search-form + .results { margin-top: .8rem; }
 .item-card, .search-result { background: white; border: 2px solid transparent; border-radius: 1rem; padding: 1rem; }
 .product-image { width: 5rem; height: 5rem; flex: 0 0 5rem; border-radius: .75rem; object-fit: contain; background: #f6f7f4; }
 .product-image-placeholder { display: grid; place-items: center; color: #4b6551; font-size: 1.75rem; }
