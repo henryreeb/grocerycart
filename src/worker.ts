@@ -42,7 +42,7 @@ export default {
       response = await handleSubmission(request, env);
     } else if (url.pathname.startsWith("/api/drafts/")) {
       response = await handleDrafts(request, env);
-    } else if (url.pathname.startsWith("/api/staples/")) {
+    } else if (url.pathname === "/api/staples" || url.pathname.startsWith("/api/staples/")) {
       response = await handleStaples(request, env);
     } else if (url.pathname.startsWith("/api/extension/")) {
       response = await handleExtension(request, env);
