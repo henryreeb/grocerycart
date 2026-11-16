@@ -13,8 +13,7 @@ export interface StapleSuggestion {
 }
 
 export function suggestStaples(records: PurchaseRecord[], now = new Date()): StapleSuggestion[] {
-  const cutoff = new Date(now);
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - 2);
+  const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
   const groups = new Map<string, { productId: string | null; description: string; orders: Set<string> }>();
   for (const record of records) {
     if (new Date(record.orderedAt).getTime() < cutoff.getTime()) continue;

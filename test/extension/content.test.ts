@@ -1,7 +1,30 @@
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { parseHTML } from "linkedom";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
+
+function purchaseContext(pathname: string) {
+  const messages: unknown[] = [];
+  const parseRecentPurchases = vi.fn((_document: unknown, _now: Date, _sourceUrl: string) => [{ orderId: "order-1", orderedAt: "2026-11-06T12:00:00Z", productId: "0001", description: "Milk" }]);
+  const context = {
+    GroceryCartExtension: { parseRecentPurchases, extensionApi: { sendMessage(message: unknown) { messages.push(message); return Promise.resolve({ ok: true }); } } },
+    location: { hostname: "www.kroger.com", pathname, href: `https://www.kroger.com${pathname}` },
+    document: { body: {} },
+    MutationObserver: class { observe() {} },
+    setTimeout() { return 1; }, clearTimeout() {}, setInterval() {}
+  };
+  vm.runInNewContext(readFileSync("extension/content.js", "utf8"), context);
+  return { messages, parseRecentPurchases };
+}
+
+test("imports purchase details but ignores the purchase summary page", () => {
+  const detail = purchaseContext("/mypurchases/detail/2026-11-06_order-1");
+  expect(detail.parseRecentPurchases).toHaveBeenCalledTimes(1);
+  expect(detail.parseRecentPurchases.mock.calls[0]?.[1].toISOString()).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  expect(detail.parseRecentPurchases.mock.calls[0]?.[2]).toBe("https://www.kroger.com/mypurchases/detail/2026-11-06_order-1");
+  expect(detail.messages).toEqual([{ type: "COLLECTED_EVIDENCE", evidenceType: "purchase_import", body: [{ orderId: "order-1", orderedAt: "2026-11-06T12:00:00Z", productId: "0001", description: "Milk" }] }]);
+  expect(purchaseContext("/mypurchases").messages).toEqual([]);
+});
 
 test("expands a collapsed Kroger cart before uploading its snapshot", () => {
   const messages: unknown[] = [];

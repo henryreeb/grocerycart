@@ -9,19 +9,18 @@
   }
 
   function parseRecentPurchases(document, now = new Date(), sourceUrl = "") {
-    const cutoff = new Date(now);
-    cutoff.setUTCMonth(cutoff.getUTCMonth() - 2);
+    const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
     if (sourceUrl) {
       let match;
       try {
         const url = new URL(sourceUrl);
-        match = url.hostname === "www.kroger.com" ? url.pathname.match(/^\/mypurchases\/detail\/(\d{4}-\d{2}-\d{2})_([^/]+)$/) : null;
+        match = url.hostname === "www.kroger.com" ? decodeURIComponent(url.pathname).match(/^\/mypurchases\/detail\/(\d{4}-\d{2}-\d{2})_([^/]+)$/) : null;
       } catch { return []; }
       if (!match) return [];
       const orderedAt = `${match[1]}T12:00:00Z`;
       const orderedDate = new Date(orderedAt);
       if (!Number.isFinite(orderedDate.getTime()) || orderedDate.toISOString().slice(0, 10) !== match[1] || orderedDate.getTime() < cutoff.getTime()) return [];
-      const orderId = `${match[1]}_${decodeURIComponent(match[2])}`;
+      const orderId = `${match[1]}_${match[2]}`;
       const cards = [...document.querySelectorAll("[data-testid^='list-style-product-card-']")];
       const records = cards.map((card) => {
         const productId = productIdFrom(card);

@@ -27,4 +27,13 @@ describe("staple suggestions", () => {
       { productId: "small", category: "occasional" }
     ]);
   });
+
+  test("starts the two-month window on the first calendar day", () => {
+    const suggestions = suggestStaples([
+      { orderId: "edge", orderedAt: "2026-02-01T00:00:00Z", productId: "milk", description: "Milk" },
+      { orderId: "old", orderedAt: "2026-01-31T23:59:59Z", productId: "bread", description: "Bread" }
+    ], new Date("2026-04-30T23:00:00Z"));
+
+    expect(suggestions).toEqual([{ productId: "milk", description: "Milk", orderCount: 1, category: "occasional" }]);
+  });
 });

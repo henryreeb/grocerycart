@@ -7,7 +7,7 @@
     const collect = () => {
       let evidenceType;
       let body;
-      if (location.pathname.includes("recent")) [evidenceType, body] = ["purchase_import", gc.parseRecentPurchases(document)];
+      if (location.pathname.startsWith("/mypurchases/detail/")) [evidenceType, body] = ["purchase_import", gc.parseRecentPurchases(document, new Date(), location.href)];
       else if (/coupon|saving/i.test(location.pathname)) [evidenceType, body] = ["coupon_evidence", { sourceUrl: location.href, coupons: gc.parseCoupons(document) }];
       else if (location.pathname.includes("cart")) {
         if (gc.expandCollapsedCart(document)) return;

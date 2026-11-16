@@ -38,6 +38,12 @@ describe("Recent Purchases adapter", () => {
     expect(parseRecentPurchases(document, new Date("2026-11-13T12:00:00Z"), "https://www.kroger.com/mypurchases/detail/2026-08-31_order")).toEqual([]);
   });
 
+  test("decodes order keys safely and uses calendar-month boundaries", () => {
+    const { document } = parseHTML(`<article data-testid="list-style-product-card-0"><a href="/p/milk/0001111041700"></a><span data-testid="cart-page-item-description">Milk</span><input data-testid="citrus-QuantityStepper-input" value="1"></article>`);
+    expect(parseRecentPurchases(document, new Date("2026-04-30T23:00:00Z"), "https://www.kroger.com/mypurchases/detail/2026-02-01%5Forder-1")).toMatchObject([{ orderId: "2026-02-01_order-1" }]);
+    expect(parseRecentPurchases(document, new Date("2026-04-30T23:00:00Z"), "https://www.kroger.com/mypurchases/detail/2026-02-01_order%ZZ")).toEqual([]);
+  });
+
   test("normalizes visible exact products and deduplicates lazy-loaded cards", () => {
     const { document } = parseHTML(readFileSync("extension/fixtures/recent-purchases.html", "utf8"));
 
