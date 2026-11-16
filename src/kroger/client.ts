@@ -12,6 +12,30 @@ function cents(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? Math.round(value * 100) : null;
 }
 
+function productImage(value: unknown): string | null {
+  if (!Array.isArray(value)) return null;
+  const candidates = value.flatMap((image) => {
+    if (!image || typeof image !== "object") return [];
+    const raw = image as Record<string, unknown>;
+    const perspective = typeof raw.perspective === "string" ? raw.perspective.toLowerCase() : "";
+    const imageRank = raw.default === true ? 0 : perspective === "front" ? 1 : 2;
+    return (Array.isArray(raw.sizes) ? raw.sizes : []).flatMap((size) => {
+      if (!size || typeof size !== "object") return [];
+      const entry = size as Record<string, unknown>;
+      if (typeof entry.url !== "string") return [];
+      try {
+        const url = new URL(entry.url);
+        if (url.protocol !== "https:") return [];
+        const label = typeof entry.size === "string" ? entry.size.toLowerCase() : "";
+        const sizeRank = label === "medium" ? 0 : label === "small" ? 1 : label === "large" ? 2 : 3;
+        return [{ url: url.toString(), imageRank, sizeRank }];
+      } catch { return []; }
+    });
+  });
+  candidates.sort((left, right) => left.imageRank - right.imageRank || left.sizeRank - right.sizeRank || left.url.localeCompare(right.url));
+  return candidates[0]?.url ?? null;
+}
+
 function normalizeProduct(value: unknown): Product {
   if (!value || typeof value !== "object") throw new Error("Malformed Kroger product");
   const raw = value as Record<string, unknown>;
@@ -27,6 +51,7 @@ function normalizeProduct(value: unknown): Product {
     id,
     upc,
     description: raw.description,
+    imageUrl: productImage(raw.images),
     brand: typeof raw.brand === "string" ? raw.brand : null,
     size: typeof item.size === "string" ? item.size : null,
     available: fulfillment.curbside === true && inventory.stockLevel !== "TEMPORARILY_OUT_OF_STOCK",

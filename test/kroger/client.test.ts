@@ -7,6 +7,10 @@ const productResponse = {
     upc: "0001111040101",
     description: "Whole Milk",
     brand: "Kroger",
+    images: [
+      { perspective: "back", default: false, sizes: [{ size: "medium", url: "https://www.kroger.com/images/back-medium.jpg" }] },
+      { perspective: "front", default: true, sizes: [{ size: "large", url: "https://www.kroger.com/images/front-large.jpg" }, { size: "medium", url: "https://www.kroger.com/images/front-medium.jpg" }] }
+    ],
     items: [{ itemId: "0001111040101", size: "1 gal", inventory: { stockLevel: "HIGH" }, fulfillment: { curbside: true, delivery: true }, price: { regular: 3.99, promo: 3.49 } }]
   }],
   meta: { pagination: { total: 1, start: 0, limit: 10 } }
@@ -31,7 +35,15 @@ describe("KrogerClient", () => {
     const url = new URL(fetcher.mock.calls[0]![0] as string);
     expect(url.searchParams.get("filter.locationId")).toBe("01400513");
     expect(url.searchParams.get("filter.fulfillment")).toBe("csp");
-    expect(result[0]).toMatchObject({ id: "0001111040101", upc: "0001111040101", regularPriceCents: 399, promoPriceCents: 349, available: true });
+    expect(result[0]).toMatchObject({ id: "0001111040101", upc: "0001111040101", regularPriceCents: 399, promoPriceCents: 349, available: true, imageUrl: "https://www.kroger.com/images/front-medium.jpg" });
+  });
+
+  test("ignores non-HTTPS and malformed product images", async () => {
+    const response = structuredClone(productResponse);
+    response.data[0]!.images = [{ perspective: "front", default: true, sizes: [{ size: "medium", url: "http://example.com/milk.jpg" }] }];
+    const client = new KrogerClient("access-token", vi.fn<typeof fetch>().mockResolvedValue(Response.json(response)));
+
+    await expect(client.searchProducts("milk", "01400513")).resolves.toMatchObject([{ imageUrl: null }]);
   });
 
   test("rejects malformed product responses", async () => {

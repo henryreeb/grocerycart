@@ -2,6 +2,7 @@ export interface Product {
   id: string;
   upc: string;
   description: string;
+  imageUrl: string | null;
   brand: string | null;
   size: string | null;
   available: boolean;

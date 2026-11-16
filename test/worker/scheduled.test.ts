@@ -33,7 +33,7 @@ describe("weekly draft preparation", () => {
 
   test("is idempotent across repeated triggers", async () => {
     const store = memoryStore();
-    const loadProduct = async () => ({ id: "milk", upc: "0001", description: "Milk", brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 399, promoPriceCents: 349, weightPriceCents: null, weightUnit: null });
+    const loadProduct = async () => ({ id: "milk", upc: "0001", description: "Milk", imageUrl: null, brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 399, promoPriceCents: 349, weightPriceCents: null, weightUnit: null });
 
     await prepareWeeklyDraft(store, loadProduct, new Date("2026-11-12T14:00:00Z"));
     await prepareWeeklyDraft(store, loadProduct, new Date("2026-11-12T15:00:00Z"));
@@ -52,7 +52,7 @@ describe("weekly draft preparation", () => {
 
   test("allows an authenticated manual preparation outside Thursday morning", async () => {
     const store = memoryStore();
-    const loadProduct = async () => ({ id: "milk", upc: "0001", description: "Milk", brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 399, promoPriceCents: null, weightPriceCents: null, weightUnit: null });
+    const loadProduct = async () => ({ id: "milk", upc: "0001", description: "Milk", imageUrl: null, brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 399, promoPriceCents: null, weightPriceCents: null, weightUnit: null });
 
     const result = await prepareWeeklyDraft(store, loadProduct, new Date("2026-11-11T14:00:00Z"), true);
 
@@ -64,7 +64,7 @@ describe("weekly draft preparation", () => {
     store.activeStaples = async () => { throw new Error("database interrupted"); };
     await expect(prepareWeeklyDraft(store, async () => { throw new Error("unused"); }, new Date("2026-11-12T15:00:00Z"))).rejects.toThrow("interrupted");
     store.activeStaples = async () => [{ productId: "milk", quantity: 1, previousPriceCents: 399 }];
-    await prepareWeeklyDraft(store, async () => ({ id: "milk", upc: "0001", description: "Milk", brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 399, promoPriceCents: null, weightPriceCents: null, weightUnit: null }), new Date("2026-11-12T15:01:00Z"));
+    await prepareWeeklyDraft(store, async () => ({ id: "milk", upc: "0001", description: "Milk", imageUrl: null, brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 399, promoPriceCents: null, weightPriceCents: null, weightUnit: null }), new Date("2026-11-12T15:01:00Z"));
     expect(store.items).toHaveLength(1);
   });
 });

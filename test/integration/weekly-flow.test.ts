@@ -20,7 +20,7 @@ test("two months of purchases become a Thursday draft that requires duplicate co
     async addItem(_id, item) { prepared.push(item); }
     ,async completeDraft() {}
   };
-  await prepareWeeklyDraft(draftStore, async () => ({ id: "milk", upc: "0001", description: "Milk", brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 429, promoPriceCents: 349, weightPriceCents: null, weightUnit: null }), new Date("2026-11-12T15:00:00Z"));
+  await prepareWeeklyDraft(draftStore, async () => ({ id: "milk", upc: "0001", description: "Milk", imageUrl: null, brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 429, promoPriceCents: 349, weightPriceCents: null, weightUnit: null }), new Date("2026-11-12T15:00:00Z"));
   expect(prepared[0]).toMatchObject({ currentPriceCents: 349, previousPriceCents: 399 });
   expect(couponState({ observedAt: "2026-11-12T15:00:00Z", clipped: true, exactEligible: true, minimumQuantity: 2, cartDiscountCents: 100, expired: false }, { quantity: 2 }, new Date("2026-11-12T15:04:00Z"))).toBe("blue");
 
