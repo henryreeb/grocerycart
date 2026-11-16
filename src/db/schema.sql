@@ -12,6 +12,7 @@ CREATE TABLE products (
   id TEXT PRIMARY KEY,
   upc TEXT NOT NULL UNIQUE,
   description TEXT NOT NULL,
+  image_url TEXT,
   brand TEXT,
   size TEXT,
   weight_unit TEXT,

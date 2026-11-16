@@ -3,6 +3,13 @@ import { DatabaseSync } from "node:sqlite";
 import { describe, expect, test } from "vitest";
 
 describe("D1 schema", () => {
+  test("stores nullable product image URLs", () => {
+    const db = new DatabaseSync(":memory:");
+    db.exec(readFileSync("src/db/schema.sql", "utf8"));
+    db.prepare("INSERT INTO products (id, upc, description, image_url) VALUES (?, ?, ?, ?)").run("p1", "0001", "Milk", "https://www.kroger.com/milk.jpg");
+    expect(db.prepare("SELECT image_url FROM products WHERE id = 'p1'").get()).toEqual({ image_url: "https://www.kroger.com/milk.jpg" });
+  });
+
   test("prevents duplicate draft weeks and duplicate products within a draft", () => {
     const db = new DatabaseSync(":memory:");
     db.exec(readFileSync("src/db/schema.sql", "utf8"));

@@ -27,7 +27,7 @@ function draftEnv(status = "draft") {
           return { success: true, meta: { changes: 1 } };
         },
         async all() {
-          return { success: true, meta: {}, results: [{ product_id: "p1", quantity: 2, description: "Milk", current_price_cents: 349 }] };
+          return { success: true, meta: {}, results: [{ product_id: "p1", quantity: 2, description: "Milk", image_url: "https://www.kroger.com/milk.jpg", current_price_cents: 349 }] };
         }
       };
     }
@@ -67,12 +67,12 @@ describe("draft routes", () => {
     const response = await handleDrafts(await authenticatedGet(env.SESSION_SECRET), env);
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ draft: { id: 1, items: [{ productId: "p1", quantity: 2 }] } });
+    expect(await response.json()).toMatchObject({ draft: { id: 1, items: [{ productId: "p1", quantity: 2, imageUrl: "https://www.kroger.com/milk.jpg" }] } });
   });
 
   test("stages an exact Kroger product in an editable draft", async () => {
     const { env, staged } = draftEnv();
-    const client = { getProduct: async () => ({ id: "p1", upc: "0001", description: "Milk", brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 399, promoPriceCents: 349, weightPriceCents: null, weightUnit: null }) };
+    const client = { getProduct: async () => ({ id: "p1", upc: "0001", description: "Milk", imageUrl: "https://www.kroger.com/milk.jpg", brand: "Kroger", size: "1 gal", available: true, regularPriceCents: 399, promoPriceCents: 349, weightPriceCents: null, weightUnit: null }) };
 
     const response = await handleDrafts(await authenticatedRequest({ productId: "p1", quantity: 2 }, env.SESSION_SECRET), env, async () => client as never);
 

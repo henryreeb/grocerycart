@@ -13,7 +13,7 @@ export async function handleHouseholdData(request: Request, env: Env): Promise<R
   if (request.method === "GET") {
     const data = {
       exportedAt: new Date().toISOString(),
-      products: await rows(env.DB, "SELECT id, upc, description, brand, size, weight_unit FROM products"),
+      products: await rows(env.DB, "SELECT id, upc, description, image_url, brand, size, weight_unit FROM products"),
       staples: await rows(env.DB, "SELECT product_id, default_quantity, purchase_frequency, active FROM staples"),
       drafts: await rows(env.DB, "SELECT id, draft_week, status, estimated_total_cents, created_at, submitted_at FROM weekly_drafts"),
       draftItems: await rows(env.DB, "SELECT draft_id, product_id, quantity, source, current_price_cents, previous_price_cents, weight_price_cents, weight_unit, available, stale FROM draft_items"),

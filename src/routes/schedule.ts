@@ -21,8 +21,8 @@ function d1Store(env: Env): WeeklyDraftStore {
     },
     async addItem(draftId: number, item: PreparedItem) {
       if (item.product) {
-        await env.DB.prepare("INSERT INTO products (id, upc, description, brand, size, weight_unit) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET upc = excluded.upc, description = excluded.description, brand = excluded.brand, size = excluded.size, weight_unit = excluded.weight_unit, updated_at = CURRENT_TIMESTAMP")
-          .bind(item.product.id, item.product.upc, item.product.description, item.product.brand, item.product.size, item.product.weightUnit).run();
+        await env.DB.prepare("INSERT INTO products (id, upc, description, image_url, brand, size, weight_unit) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET upc = excluded.upc, description = excluded.description, image_url = excluded.image_url, brand = excluded.brand, size = excluded.size, weight_unit = excluded.weight_unit, updated_at = CURRENT_TIMESTAMP")
+          .bind(item.product.id, item.product.upc, item.product.description, item.product.imageUrl, item.product.brand, item.product.size, item.product.weightUnit).run();
       }
       await env.DB.prepare("INSERT INTO draft_items (draft_id, product_id, quantity, source, current_price_cents, previous_price_cents, weight_price_cents, weight_unit, available, stale) VALUES (?, ?, ?, 'staple', ?, ?, ?, ?, ?, ?)")
         .bind(draftId, item.productId, item.quantity, item.currentPriceCents, item.previousPriceCents, item.product?.weightPriceCents ?? null, item.product?.weightUnit ?? null, item.available ? 1 : 0, item.stale ? 1 : 0).run();

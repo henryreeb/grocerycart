@@ -14,7 +14,7 @@ async function dataEnv() {
         bind() { return this; },
         async first() { return sql.includes("password_hash") ? { password_hash: passwordHash } : null; },
         async all() {
-          if (sql.includes("FROM products")) return { results: [{ id: "p1", upc: "0001", description: "Milk" }], success: true, meta: {} };
+          if (sql.includes("FROM products")) return { results: [{ id: "p1", upc: "0001", description: "Milk", image_url: "https://www.kroger.com/milk.jpg" }], success: true, meta: {} };
           if (sql.includes("FROM weekly_drafts")) return { results: [{ id: 1, draft_week: "2026-11-09", status: "draft" }], success: true, meta: {} };
           return { results: [], success: true, meta: {} };
         },
@@ -43,6 +43,7 @@ describe("household data route", () => {
 
     expect(response.status).toBe(200);
     expect(text).toContain("Milk");
+    expect(text).toContain("https://www.kroger.com/milk.jpg");
     expect(text).not.toMatch(/password_hash|oauth|nonce|never-export/i);
   });
 

@@ -18,7 +18,7 @@ export async function handleDrafts(request: Request, env: Env, loadClient: Kroge
   if (request.method === "GET" && path === "/api/drafts/current") {
     const draft = await env.DB.prepare("SELECT id, draft_week, status FROM weekly_drafts ORDER BY created_at DESC LIMIT 1").first<{ id: number; draft_week: string; status: string }>();
     if (!draft) return Response.json({ draft: null });
-    const rows = await env.DB.prepare("SELECT di.id, di.product_id, di.quantity, di.current_price_cents, di.previous_price_cents, di.weight_price_cents, di.weight_unit, di.available, di.stale, p.upc, p.description, p.brand, p.size FROM draft_items di JOIN products p ON p.id = di.product_id WHERE di.draft_id = ? ORDER BY p.description").bind(draft.id).all<Record<string, unknown>>();
+    const rows = await env.DB.prepare("SELECT di.id, di.product_id, di.quantity, di.current_price_cents, di.previous_price_cents, di.weight_price_cents, di.weight_unit, di.available, di.stale, p.upc, p.description, p.image_url, p.brand, p.size FROM draft_items di JOIN products p ON p.id = di.product_id WHERE di.draft_id = ? ORDER BY p.description").bind(draft.id).all<Record<string, unknown>>();
     const evidenceRows = await env.DB.prepare("SELECT ce.* FROM coupon_evidence ce JOIN draft_items di ON di.id = ce.draft_item_id WHERE di.draft_id = ? ORDER BY ce.observed_at DESC").bind(draft.id).all<Record<string, unknown>>();
     const latestEvidence = new Map<number, Record<string, unknown>>();
     for (const evidence of evidenceRows.results) if (!latestEvidence.has(Number(evidence.draft_item_id))) latestEvidence.set(Number(evidence.draft_item_id), evidence);
@@ -26,6 +26,7 @@ export async function handleDrafts(request: Request, env: Env, loadClient: Kroge
       productId: row.product_id,
       upc: row.upc,
       description: row.description,
+      imageUrl: row.image_url,
       brand: row.brand,
       size: row.size,
       quantity: row.quantity,
@@ -76,8 +77,8 @@ export async function handleDrafts(request: Request, env: Env, loadClient: Kroge
     const household = await env.DB.prepare("SELECT preferred_store_id FROM households WHERE id = 1").bind().first<{ preferred_store_id: string | null }>();
     if (!household?.preferred_store_id) return Response.json({ error: "Preferred store is not configured" }, { status: 409 });
     const product = await (await loadClient(env)).getProduct(input.productId, household.preferred_store_id);
-    await env.DB.prepare("INSERT INTO products (id, upc, description, brand, size, weight_unit) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET upc = excluded.upc, description = excluded.description, brand = excluded.brand, size = excluded.size, weight_unit = excluded.weight_unit, updated_at = CURRENT_TIMESTAMP")
-      .bind(product.id, product.upc, product.description, product.brand, product.size, product.weightUnit).run();
+    await env.DB.prepare("INSERT INTO products (id, upc, description, image_url, brand, size, weight_unit) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET upc = excluded.upc, description = excluded.description, image_url = excluded.image_url, brand = excluded.brand, size = excluded.size, weight_unit = excluded.weight_unit, updated_at = CURRENT_TIMESTAMP")
+      .bind(product.id, product.upc, product.description, product.imageUrl, product.brand, product.size, product.weightUnit).run();
     const staged = await env.DB.batch([
       env.DB.prepare("UPDATE weekly_drafts SET revision = revision + 1 WHERE id = ? AND status = 'draft'").bind(draftId),
       env.DB.prepare("INSERT INTO draft_items (draft_id, product_id, quantity, source, current_price_cents, weight_price_cents, weight_unit, available) SELECT ?, ?, ?, 'search', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM weekly_drafts WHERE id = ? AND status = 'draft') ON CONFLICT(draft_id, product_id) DO UPDATE SET quantity = excluded.quantity, current_price_cents = excluded.current_price_cents, weight_price_cents = excluded.weight_price_cents, weight_unit = excluded.weight_unit, available = excluded.available")
