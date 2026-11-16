@@ -221,7 +221,7 @@ function renderSearchResults(state) {
 const productSearch = createProductSearch(
   (term, start) => api(`/api/products?q=${encodeURIComponent(term)}&limit=10&start=${start}`),
   renderSearchResults,
-  (error) => showMessage(error.message, "error")
+  (message, error) => showMessage(error ? message.message : message, error ? "error" : "status")
 );
 
 async function loadApp() {

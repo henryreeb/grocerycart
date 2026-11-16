@@ -1,4 +1,4 @@
-export function createProductSearch(fetchPage, render, showError) {
+export function createProductSearch(fetchPage, render, notify) {
   let version = 0;
   let state = { term: "", products: [], nextStart: 0, loading: false, hasMore: false };
   const publish = () => render(state);
@@ -9,13 +9,14 @@ export function createProductSearch(fetchPage, render, showError) {
       if (requestVersion !== version) return;
       const products = [...state.products, ...page.products].filter((product, index, all) => all.findIndex(({ id }) => id === product.id) === index);
       const nextStart = page.start + page.limit;
+      if (page.products.length === 0) notify(state.products.length ? "No more products found." : "No products found.");
       state = { ...state, products, nextStart, loading: false, hasMore: nextStart < page.total };
       publish();
     } catch (error) {
       if (requestVersion !== version) return;
       state = { ...state, loading: false };
       publish();
-      showError(error);
+      notify(error, true);
     }
   }
 

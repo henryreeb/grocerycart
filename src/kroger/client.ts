@@ -88,7 +88,7 @@ export class KrogerClient {
     const products = body.data.map(normalizeProduct);
     const pagination = body.meta?.pagination;
     if (!pagination || !Number.isInteger(pagination.start) || !Number.isInteger(pagination.limit) || !Number.isInteger(pagination.total)
-      || (pagination.start as number) < 0 || (pagination.limit as number) < 1 || (pagination.total as number) < 0) {
+      || pagination.start !== start || (pagination.limit as number) < 1 || (pagination.total as number) < 0) {
       throw new Error("Malformed Kroger pagination");
     }
     return { products, start: pagination.start as number, limit: pagination.limit as number, total: pagination.total as number };

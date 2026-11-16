@@ -8,11 +8,26 @@ type SearchState = { term: string; products: Array<{ id: string }>; loading: boo
 describe("product search", () => {
   test("starts a new search with an empty first page", async () => {
     const states: unknown[] = [];
-    const search = createProductSearch(async () => page([], 0, 0), (state: SearchState) => states.push(structuredClone(state)), () => {});
+    const messages: string[] = [];
+    const search = createProductSearch(async () => page([], 0, 0), (state: SearchState) => states.push(structuredClone(state)), (message: string) => messages.push(message));
 
     await search.start("milk");
 
     expect(states.at(-1)).toMatchObject({ term: "milk", products: [], loading: false, hasMore: false });
+    expect(messages).toEqual(["No products found."]);
+  });
+
+  test("keeps existing products and reports an empty later page", async () => {
+    const states: SearchState[] = [];
+    const messages: string[] = [];
+    const responses = [page([{ id: "1" }], 0, 20), page([], 10, 20)];
+    const search = createProductSearch(async () => responses.shift()!, (state: SearchState) => states.push(structuredClone(state)), (message: string) => messages.push(message));
+
+    await search.start("milk");
+    await search.more();
+
+    expect(states.at(-1)?.products).toEqual([{ id: "1" }]);
+    expect(messages).toEqual(["No more products found."]);
   });
 
   test("appends later pages without duplicate product ids and stops at the reported total", async () => {

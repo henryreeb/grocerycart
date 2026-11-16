@@ -27,7 +27,9 @@ describe("KrogerClient", () => {
   });
 
   test("searches the configured store for pickup and normalizes cents", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(productResponse));
+    const response = structuredClone(productResponse);
+    response.meta.pagination.start = 20;
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(response));
     const client = new KrogerClient("access-token", fetcher);
 
     const result = await client.searchProducts("milk", "01400513", 10, 20);
@@ -38,7 +40,7 @@ describe("KrogerClient", () => {
     expect(url.searchParams.get("filter.start")).toBe("20");
     expect(result).toMatchObject({
       products: [{ id: "0001111040101", upc: "0001111040101", regularPriceCents: 399, promoPriceCents: 349, available: true, imageUrl: "https://www.kroger.com/images/front-medium.jpg" }],
-      start: 0,
+      start: 20,
       limit: 10,
       total: 1
     });
@@ -64,6 +66,12 @@ describe("KrogerClient", () => {
     const client = new KrogerClient("access-token", vi.fn<typeof fetch>().mockResolvedValue(Response.json(response)));
 
     await expect(client.searchProducts("milk", "01400513")).rejects.toThrow("Malformed Kroger pagination");
+  });
+
+  test("rejects pagination metadata for a different offset", async () => {
+    const client = new KrogerClient("access-token", vi.fn<typeof fetch>().mockResolvedValue(Response.json(productResponse)));
+
+    await expect(client.searchProducts("milk", "01400513", 10, 10)).rejects.toThrow("Malformed Kroger pagination");
   });
 
   test("preserves Kroger rate-limit status", async () => {
