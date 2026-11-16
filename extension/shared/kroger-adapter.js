@@ -8,6 +8,11 @@
     return link.match(/\/(\d{10,14})(?:\?|$)/)?.[1] ?? null;
   }
 
+  function httpsImage(value) {
+    if (typeof value !== "string") return null;
+    try { const url = new URL(value); return url.protocol === "https:" ? url.toString() : null; } catch { return null; }
+  }
+
   function parseRecentPurchases(document, now = new Date(), sourceUrl = "") {
     const cutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
     if (sourceUrl) {
@@ -27,10 +32,17 @@
         const description = card.querySelector("[data-testid='cart-page-item-description']")?.textContent?.trim();
         const quantity = Number(card.querySelector("[data-testid='citrus-QuantityStepper-input']")?.value);
         if (!productId || !description || !Number.isInteger(quantity) || quantity < 1) return null;
-        return { orderId, orderedAt, productId, description, size: card.querySelector("[data-testid='product-item-sizing']")?.textContent?.trim() || null, quantity };
+        return { orderId, orderedAt, productId, description, imageUrl: httpsImage(card.querySelector("[data-testid='product-image']")?.getAttribute("src")), size: card.querySelector("[data-testid='product-item-sizing']")?.textContent?.trim() || null, quantity };
       });
       if (cards.length === 0 || records.some((record) => record === null)) return [];
-      return [...new Map(records.map((record) => [`${orderId}:${record.productId}`, record])).values()];
+      const unique = new Map();
+      for (const record of records) {
+        const key = `${orderId}:${record.productId}`;
+        const existing = unique.get(key);
+        if (existing) existing.imageUrl ??= record.imageUrl;
+        else unique.set(key, record);
+      }
+      return [...unique.values()];
     }
     const nodes = document.querySelectorAll("[data-gc-purchase], [data-testid*='purchase-item'], [data-testid*='product-card']");
     const unique = new Map();

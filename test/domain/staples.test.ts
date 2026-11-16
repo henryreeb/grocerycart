@@ -11,7 +11,7 @@ describe("staple suggestions", () => {
       { orderId: "old", orderedAt: "2026-08-01T12:00:00Z", productId: "milk", description: "Milk" }
     ], new Date("2026-11-12T12:00:00Z"));
 
-    expect(suggestions).toEqual([{ productId: "milk", description: "Milk", orderCount: 3, category: "core" }]);
+    expect(suggestions).toEqual([{ productId: "milk", description: "Milk", orderCount: 3, category: "core", imageUrl: null }]);
   });
 
   test("keeps exact variants separate and flags missing identifiers", () => {
@@ -34,6 +34,14 @@ describe("staple suggestions", () => {
       { orderId: "old", orderedAt: "2026-01-31T23:59:59Z", productId: "bread", description: "Bread" }
     ], new Date("2026-04-30T23:00:00Z"));
 
-    expect(suggestions).toEqual([{ productId: "milk", description: "Milk", orderCount: 1, category: "occasional" }]);
+    expect(suggestions).toEqual([{ productId: "milk", description: "Milk", orderCount: 1, category: "occasional", imageUrl: null }]);
+  });
+
+  test("retains the first available image for a product suggestion", () => {
+    const suggestions = suggestStaples([
+      { orderId: "a", orderedAt: "2026-11-01T12:00:00Z", productId: "milk", description: "Milk", imageUrl: null },
+      { orderId: "b", orderedAt: "2026-11-02T12:00:00Z", productId: "milk", description: "Milk", imageUrl: "https://www.kroger.com/milk.jpg" }
+    ], new Date("2026-11-16T12:00:00Z"));
+    expect(suggestions[0]).toMatchObject({ imageUrl: "https://www.kroger.com/milk.jpg", orderCount: 2 });
   });
 });

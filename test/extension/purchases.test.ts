@@ -10,6 +10,7 @@ describe("Recent Purchases adapter", () => {
     const { document } = parseHTML(`<!doctype html><html><body>
       <article data-testid="list-style-product-card-0">
         <a href="/p/kroger-2-reduced-fat-milk-gallon/0001111041700?fulfillment=PICKUP"></a>
+        <img data-testid="product-image" src="https://www.kroger.com/product/images/medium/front/0001111041700">
         <span data-testid="cart-page-item-description">Kroger 2% Milk</span>
         <span data-testid="product-item-sizing">1 gal</span>
         <input data-testid="citrus-QuantityStepper-input" value="2">
@@ -23,8 +24,13 @@ describe("Recent Purchases adapter", () => {
     </body></html>`);
 
     expect(parseRecentPurchases(document, new Date("2026-11-13T12:00:00Z"), "https://www.kroger.com/mypurchases/detail/2026-11-06_016_00569_1460_1441557?source=history")).toEqual([
-      { orderId: "2026-11-06_016_00569_1460_1441557", orderedAt: "2026-11-06T12:00:00Z", productId: "0001111041700", description: "Kroger 2% Milk", size: "1 gal", quantity: 2 }
+      { orderId: "2026-11-06_016_00569_1460_1441557", orderedAt: "2026-11-06T12:00:00Z", productId: "0001111041700", description: "Kroger 2% Milk", imageUrl: "https://www.kroger.com/product/images/medium/front/0001111041700", size: "1 gal", quantity: 2 }
     ]);
+  });
+
+  test("rejects non-HTTPS purchase images without rejecting the product", () => {
+    const { document } = parseHTML(`<article data-testid="list-style-product-card-0"><a href="/p/milk/0001111041700"></a><img data-testid="product-image" src="http://example.com/milk.jpg"><span data-testid="cart-page-item-description">Milk</span><input data-testid="citrus-QuantityStepper-input" value="1"></article>`);
+    expect(parseRecentPurchases(document, new Date("2026-11-13T12:00:00Z"), "https://www.kroger.com/mypurchases/detail/2026-11-06_order")).toMatchObject([{ imageUrl: null }]);
   });
 
   test("fails closed for malformed detail dates or product cards", () => {
