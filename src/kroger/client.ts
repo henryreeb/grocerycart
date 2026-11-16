@@ -1,4 +1,4 @@
-import type { CartItemInput, Product } from "./types";
+import type { CartItemInput, Product, ProductPage } from "./types";
 
 const API_BASE = "https://api.kroger.com/v1";
 
@@ -75,16 +75,23 @@ export class KrogerClient {
     return response;
   }
 
-  async searchProducts(term: string, locationId: string, limit = 10): Promise<Product[]> {
+  async searchProducts(term: string, locationId: string, limit = 10, start = 0): Promise<ProductPage> {
     const query = new URLSearchParams({
       "filter.term": term,
       "filter.locationId": locationId,
       "filter.fulfillment": "csp",
-      "filter.limit": String(limit)
+      "filter.limit": String(limit),
+      "filter.start": String(start)
     });
-    const body = await (await this.request(`/products?${query}`)).json<{ data?: unknown[] }>();
+    const body = await (await this.request(`/products?${query}`)).json<{ data?: unknown[]; meta?: { pagination?: Record<string, unknown> } }>();
     if (!Array.isArray(body.data)) throw new Error("Malformed Kroger product response");
-    return body.data.map(normalizeProduct);
+    const products = body.data.map(normalizeProduct);
+    const pagination = body.meta?.pagination;
+    if (!pagination || !Number.isInteger(pagination.start) || !Number.isInteger(pagination.limit) || !Number.isInteger(pagination.total)
+      || (pagination.start as number) < 0 || (pagination.limit as number) < 1 || (pagination.total as number) < 0) {
+      throw new Error("Malformed Kroger pagination");
+    }
+    return { products, start: pagination.start as number, limit: pagination.limit as number, total: pagination.total as number };
   }
 
   async getProduct(productId: string, locationId: string): Promise<Product> {

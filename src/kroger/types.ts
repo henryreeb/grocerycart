@@ -12,6 +12,13 @@ export interface Product {
   weightUnit: string | null;
 }
 
+export interface ProductPage {
+  products: Product[];
+  start: number;
+  limit: number;
+  total: number;
+}
+
 export interface CartItemInput {
   upc: string;
   quantity: number;

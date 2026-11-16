@@ -4,11 +4,13 @@ import type { KrogerClient } from "../kroger/client";
 import { KrogerClient as OfficialKrogerClient } from "../kroger/client";
 import { decryptToken, encryptToken, refreshAccessToken } from "../kroger/oauth";
 
-export function productSearchInput(url: URL): { term: string; limit: number } {
+export function productSearchInput(url: URL): { term: string; limit: number; start: number } {
   const term = (url.searchParams.get("q") ?? "").trim();
   if (term.length < 2 || term.length > 100) throw new Error("Search term must be between 2 and 100 characters");
   const requested = Number.parseInt(url.searchParams.get("limit") ?? "10", 10);
-  return { term, limit: Number.isFinite(requested) ? Math.min(50, Math.max(1, requested)) : 10 };
+  const start = Number(url.searchParams.get("start") ?? "0");
+  if (!Number.isInteger(start) || start < 0) throw new Error("Search start must be a non-negative integer");
+  return { term, limit: Number.isFinite(requested) ? Math.min(50, Math.max(1, requested)) : 10, start };
 }
 
 export type KrogerClientLoader = (env: Env) => Promise<KrogerClient>;
@@ -27,11 +29,11 @@ export async function handleProducts(request: Request, env: Env, loadClient: Kro
   const token = readSessionCookie(request);
   if (!token || !(await verifySession(env.SESSION_SECRET, token))) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const { term, limit } = productSearchInput(new URL(request.url));
+    const { term, limit, start } = productSearchInput(new URL(request.url));
     const household = await env.DB.prepare("SELECT preferred_store_id FROM households WHERE id = 1").bind().first<{ preferred_store_id: string | null }>();
     if (!household?.preferred_store_id) return Response.json({ error: "Preferred store is not configured" }, { status: 409 });
-    const products = await (await loadClient(env)).searchProducts(term, household.preferred_store_id, limit);
-    return Response.json({ products }, { headers: { "cache-control": "no-store" } });
+    const page = await (await loadClient(env)).searchProducts(term, household.preferred_store_id, limit, start);
+    return Response.json(page, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Product search failed" }, { status: 400 });
   }

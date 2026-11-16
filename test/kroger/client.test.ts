@@ -23,19 +23,25 @@ describe("KrogerClient", () => {
       return Promise.resolve(Response.json(productResponse));
     } as typeof fetch;
 
-    await expect(new KrogerClient("access-token", fetcher).searchProducts("milk", "01400513")).resolves.toHaveLength(1);
+    await expect(new KrogerClient("access-token", fetcher).searchProducts("milk", "01400513")).resolves.toMatchObject({ products: [{ id: "0001111040101" }] });
   });
 
   test("searches the configured store for pickup and normalizes cents", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(productResponse));
     const client = new KrogerClient("access-token", fetcher);
 
-    const result = await client.searchProducts("milk", "01400513");
+    const result = await client.searchProducts("milk", "01400513", 10, 20);
 
     const url = new URL(fetcher.mock.calls[0]![0] as string);
     expect(url.searchParams.get("filter.locationId")).toBe("01400513");
     expect(url.searchParams.get("filter.fulfillment")).toBe("csp");
-    expect(result[0]).toMatchObject({ id: "0001111040101", upc: "0001111040101", regularPriceCents: 399, promoPriceCents: 349, available: true, imageUrl: "https://www.kroger.com/images/front-medium.jpg" });
+    expect(url.searchParams.get("filter.start")).toBe("20");
+    expect(result).toMatchObject({
+      products: [{ id: "0001111040101", upc: "0001111040101", regularPriceCents: 399, promoPriceCents: 349, available: true, imageUrl: "https://www.kroger.com/images/front-medium.jpg" }],
+      start: 0,
+      limit: 10,
+      total: 1
+    });
   });
 
   test("ignores non-HTTPS and malformed product images", async () => {
@@ -43,13 +49,21 @@ describe("KrogerClient", () => {
     response.data[0]!.images = [{ perspective: "front", default: true, sizes: [{ size: "medium", url: "http://example.com/milk.jpg" }] }];
     const client = new KrogerClient("access-token", vi.fn<typeof fetch>().mockResolvedValue(Response.json(response)));
 
-    await expect(client.searchProducts("milk", "01400513")).resolves.toMatchObject([{ imageUrl: null }]);
+    await expect(client.searchProducts("milk", "01400513")).resolves.toMatchObject({ products: [{ imageUrl: null }] });
   });
 
   test("rejects malformed product responses", async () => {
     const client = new KrogerClient("access-token", vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: [{ description: "No identifier" }] })));
 
     await expect(client.searchProducts("milk", "01400513")).rejects.toThrow("Malformed Kroger product");
+  });
+
+  test("rejects malformed pagination metadata", async () => {
+    const response = structuredClone(productResponse);
+    (response.meta.pagination as Record<string, unknown>).total = "1";
+    const client = new KrogerClient("access-token", vi.fn<typeof fetch>().mockResolvedValue(Response.json(response)));
+
+    await expect(client.searchProducts("milk", "01400513")).rejects.toThrow("Malformed Kroger pagination");
   });
 
   test("preserves Kroger rate-limit status", async () => {
