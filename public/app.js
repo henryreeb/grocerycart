@@ -1,3 +1,5 @@
+import { productImage } from "./product-image.js";
+
 const root = document.querySelector("#app");
 let csrf = sessionStorage.getItem("csrf") ?? "";
 let draft = null;
@@ -74,7 +76,8 @@ function itemCard(item) {
     : `${money(item.currentPriceCents)} · ${change}`;
   const stateText = { gray: "No coupon evidence", amber: "Coupon needs a fresh or exact check", green: "Clipped coupon applies", blue: "Discount appears in Kroger cart", red: "Coupon does not apply" }[item.couponState ?? "gray"];
   return element("article", { className: `item-card evidence-${item.couponState ?? "gray"}${item.available ? "" : " unavailable"}` }, [
-    element("div", {}, [
+    productImage(document, item.imageUrl),
+    element("div", { className: "product-details" }, [
       element("h3", { textContent: item.description }),
       element("p", { textContent: [item.brand, item.size].filter(Boolean).join(" · ") }),
       element("p", { textContent: priceText, className: "price" }),
@@ -174,7 +177,7 @@ async function loadSuggestions() {
   target.replaceChildren(...suggestions.filter((item) => item.productId).map((item) => {
     const add = element("button", { type: "button", textContent: "Use weekly" });
     add.addEventListener("click", () => approveStaple(item.productId));
-    return element("article", { className: "search-result" }, [element("span", { textContent: `${item.description} · ${item.orderCount} recent orders` }), add]);
+    return element("article", { className: "search-result" }, [productImage(document, item.imageUrl), element("span", { className: "product-details", textContent: `${item.description} · ${item.orderCount} recent orders` }), add]);
   }));
 }
 
@@ -204,7 +207,8 @@ async function search(event) {
       const staple = element("button", { type: "button", textContent: "Use weekly", className: "secondary" });
       staple.addEventListener("click", () => approveStaple(product.id));
       return element("article", { className: "search-result" }, [
-        element("div", {}, [element("strong", { textContent: product.description }), element("p", { textContent: [product.brand, product.size, money(product.promoPriceCents ?? product.regularPriceCents)].filter(Boolean).join(" · ") })]),
+        productImage(document, product.imageUrl),
+        element("div", { className: "product-details" }, [element("strong", { textContent: product.description }), element("p", { textContent: [product.brand, product.size, money(product.promoPriceCents ?? product.regularPriceCents)].filter(Boolean).join(" · ") })]),
         element("div", { className: "item-actions" }, [add, staple])
       ]);
     }));

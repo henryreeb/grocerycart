@@ -11,7 +11,7 @@ import { handleHouseholdData } from "./routes/household-data";
 
 function secure(response: Response): Response {
   const headers = new Headers(response.headers);
-  headers.set("content-security-policy", "default-src 'self'; connect-src 'self' https://api.kroger.com; img-src 'self' data:; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+  headers.set("content-security-policy", "default-src 'self'; connect-src 'self' https://api.kroger.com; img-src 'self' data: https:; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
   headers.set("x-frame-options", "DENY");
   headers.set("x-content-type-options", "nosniff");
   headers.set("referrer-policy", "no-referrer");

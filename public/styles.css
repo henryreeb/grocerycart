@@ -23,6 +23,9 @@ section { margin-top: 2rem; }
 h1, h2, h3, p { margin-top: 0; }
 .items, .results { display: grid; gap: .8rem; }
 .item-card, .search-result { background: white; border: 2px solid transparent; border-radius: 1rem; padding: 1rem; }
+.product-image { width: 5rem; height: 5rem; flex: 0 0 5rem; border-radius: .75rem; object-fit: contain; background: #f6f7f4; }
+.product-image-placeholder { display: grid; place-items: center; color: #4b6551; font-size: 1.75rem; }
+.product-details { flex: 1 1 auto; min-width: 0; }
 .item-card.unavailable { border-color: #b42318; }
 .item-card.evidence-gray { border-color: #9ca3af; }
 .item-card.evidence-amber { border-color: #d97706; }
